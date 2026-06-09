@@ -6,7 +6,5 @@ services:
       - "8000:8000"
     env_file:
       - .env
-    volumes:
-      - .:/app
     # Override command if needed, otherwise uses Dockerfile CMD
     command: gunicorn --bind 0.0.0.0:8000 core.wsgi:application
