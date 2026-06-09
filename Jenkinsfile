@@ -52,8 +52,8 @@ pipeline {
             steps {
                 script {
                     echo 'Deploying application using Docker Compose...'
-                    // This assumes Jenkins has access to the target deployment environment
-                    // and 'docker-compose' is installed.
+                    // Create .env from sample if it doesn't exist
+                    sh "if [ ! -f .env ]; then cp env.sample .env; fi"
                     sh "docker-compose up -d"
                 }
             }
