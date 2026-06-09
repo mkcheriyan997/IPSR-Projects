@@ -52,8 +52,9 @@ pipeline {
             steps {
                 script {
                     echo 'Deploying application using Docker Compose...'
-                    // Create .env from sample if it doesn't exist
                     sh "if [ ! -f .env ]; then cp env.sample .env; fi"
+                    // Stop and remove existing containers to avoid name conflicts
+                    sh "docker-compose down --remove-orphans || true"
                     sh "docker-compose up -d"
                 }
             }
