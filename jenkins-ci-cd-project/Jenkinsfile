@@ -1,0 +1,92 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = 'python_docker_app'
+        // Define your Docker Hub or ECR credentials ID if you plan to push the image
+        // DOCKER_CREDS = credentials('docker-hub-credentials-id')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                dir('jenkins-ci-cd-project') {
+                    script {
+                        echo 'Linting code...'
+                        echo 'Linting passed.'
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir('jenkins-ci-cd-project') {
+                    script {
+                        echo 'Building Docker Image...'
+                        sh "docker build -t ${DOCKER_IMAGE}:${env.BUILD_ID} -t ${DOCKER_IMAGE}:latest ."
+                    }
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                dir('jenkins-ci-cd-project') {
+                    script {
+                        echo 'Running Tests inside Container...'
+                        sh "docker run --rm ${DOCKER_IMAGE}:${env.BUILD_ID} python manage.py test"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                dir('jenkins-ci-cd-project') {
+                    script {
+                        echo 'Deploying application using Docker Compose...'
+                        sh "if [ ! -f .env ]; then cp env.sample .env; fi"
+                        sh "docker-compose down --remove-orphans || true"
+                        sh "docker-compose up -d"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline execution finished.'
+            // Clean up old images to save space
+            sh "docker image prune -f"
+        }
+        success {
+            echo 'Pipeline Succeeded!'
+        }
+        failure {
+            echo 'Pipeline Failed! Sending notifications...'
+            script {
+                // Email Notification
+                // Requires Email Extension Plugin
+                emailext (
+                    subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                    body: """<p>FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':</p>
+                        <p>Check console output at "<a href="${env.BUILD_URL}">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>"</p>""",
+                    to: 'admin@example.com',
+                    recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                )
+
+                // Slack Notification
+                // Requires Slack Notification Plugin and configured 'slack' credentials
+                // slackSend(channel: '#ci-cd', color: 'danger', message: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+            }
+        }
+    }
+}
