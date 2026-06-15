@@ -53,6 +53,8 @@ pipeline {
                     script {
                         echo 'Deploying application using Docker Compose...'
                         sh "if [ ! -f .env ]; then cp env.sample .env; fi"
+                        // Explicitly remove the container to avoid conflicts if it was created outside this compose project
+                        sh "docker rm -f ${DOCKER_IMAGE} || true"
                         sh "docker-compose down --remove-orphans || true"
                         sh "docker-compose up -d"
                     }
