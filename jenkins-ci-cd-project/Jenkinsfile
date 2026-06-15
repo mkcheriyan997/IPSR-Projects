@@ -70,18 +70,26 @@ pipeline {
             sh "docker image prune -f"
         }
         success {
-            echo 'Pipeline Succeeded!'
+            echo 'Pipeline Succeeded! Sending notification...'
+            script {
+                emailext (
+                    subject: "SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                    body: """<p>SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' was successful.</p>
+                        <p>Access the application at: <a href="http://16.170.157.21:8000">http://16.170.157.21:8000</a></p>
+                        <p>Check console output at "<a href="${env.BUILD_URL}">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>"</p>""",
+                    to: 'm25ca030@mace.ac.in'
+                )
+            }
         }
         failure {
             echo 'Pipeline Failed! Sending notifications...'
             script {
                 // Email Notification
-                // Requires Email Extension Plugin
                 emailext (
                     subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
                     body: """<p>FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':</p>
                         <p>Check console output at "<a href="${env.BUILD_URL}">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>"</p>""",
-                    to: 'admin@example.com',
+                    to: 'm25ca030@mace.ac.in',
                     recipientProviders: [[$class: 'DevelopersRecipientProvider']]
                 )
 
