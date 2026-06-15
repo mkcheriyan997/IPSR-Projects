@@ -77,7 +77,7 @@ pipeline {
                     body: """<p>SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' was successful.</p>
                         <p>Access the application at: <a href="http://16.170.157.21:8000">http://16.170.157.21:8000</a></p>
                         <p>Check console output at "<a href="${env.BUILD_URL}">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>"</p>""",
-                    to: 'm25ca030@mace.ac.in'
+                    to: 'mkcheriyan997@gmail.com'
                 )
             }
         }
@@ -89,7 +89,7 @@ pipeline {
                     subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
                     body: """<p>FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':</p>
                         <p>Check console output at "<a href="${env.BUILD_URL}">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>"</p>""",
-                    to: 'm25ca030@mace.ac.in',
+                    to: 'mkcheriyan997@gmail.com',
                     recipientProviders: [[$class: 'DevelopersRecipientProvider']]
                 )
 
