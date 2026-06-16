@@ -1,0 +1,114 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME = 'blue-green-app'
+        VERSION = "2.0.${env.BUILD_ID}"
+        PROJECT_DIR = 'jenkins-blue-green-project'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Determine Target Environment') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    script {
+                        // Check Nginx config to see which environment is currently active
+                        def currentEnv = sh(script: "grep 'server app_blue:8000' nginx/nginx.conf && echo 'blue' || echo 'green'", returnStdout: true).trim()
+                        
+                        if (currentEnv == 'blue') {
+                            env.TARGET_ENV = 'green'
+                            env.TARGET_PORT = '8002'
+                            env.CURRENT_ENV = 'blue'
+                        } else {
+                            env.TARGET_ENV = 'blue'
+                            env.TARGET_PORT = '8001'
+                            env.CURRENT_ENV = 'green'
+                        }
+                        echo "Current active environment: ${env.CURRENT_ENV}"
+                        echo "Deploying to target environment: ${env.TARGET_ENV} on port ${env.TARGET_PORT}"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Target Environment') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    script {
+                        echo "Deploying Version ${VERSION} to ${env.TARGET_ENV}..."
+                        sh "VERSION=${VERSION} docker-compose up -d --build app_${env.TARGET_ENV}"
+                    }
+                }
+            }
+        }
+
+        stage('Smoke Test') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    script {
+                        echo "Running smoke tests on ${env.TARGET_ENV} (localhost:${env.TARGET_PORT})..."
+                        // Wait a few seconds for the app to start
+                        sleep 5
+                        def response = sh(script: "curl -s http://localhost:${env.TARGET_PORT}/health", returnStdout: true).trim()
+                        if (response != "OK") {
+                            error "Smoke test failed! Application on ${env.TARGET_ENV} is not healthy."
+                        }
+                        echo "Smoke test passed!"
+                    }
+                }
+            }
+        }
+
+        stage('Switch Traffic') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    script {
+                        echo "Switching traffic from ${env.CURRENT_ENV} to ${env.TARGET_ENV}..."
+                        // Update Nginx config
+                        if (env.TARGET_ENV == 'green') {
+                            sh "sed -i 's/server app_blue:8000/server app_green:8000/' nginx/nginx.conf"
+                        } else {
+                            sh "sed -i 's/server app_green:8000/server app_blue:8000/' nginx/nginx.conf"
+                        }
+                        
+                        // Reload Nginx or restart container
+                        sh "docker-compose up -d nginx"
+                        echo "Traffic switched successfully to ${VERSION} on ${env.TARGET_ENV}."
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            dir("${PROJECT_DIR}") {
+                script {
+                    echo "Pipeline failed! Rolling back/Cleaning up..."
+                    echo "Stopping the failed ${env.TARGET_ENV} deployment..."
+                    sh "docker-compose stop app_${env.TARGET_ENV} || true"
+                    
+                    emailext (
+                        subject: "DEPLOYMENT FAILED: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
+                        body: "Blue-Green deployment failed during '${env.STAGE_NAME}'. Rolled back to ${env.CURRENT_ENV}.",
+                        to: 'mkcheriyan997@gmail.com'
+                    )
+                }
+            }
+        }
+        success {
+            echo "Deployment Successful!"
+            emailext (
+                subject: "DEPLOYMENT SUCCESS: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
+                body: "Blue-Green deployment successful. Version ${VERSION} is now live on ${env.TARGET_ENV}.",
+                to: 'mkcheriyan997@gmail.com'
+            )
+        }
+    }
+}
