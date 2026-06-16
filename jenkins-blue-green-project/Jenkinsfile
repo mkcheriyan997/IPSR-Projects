@@ -19,8 +19,8 @@ pipeline {
                 dir("${PROJECT_DIR}") {
                     script {
                         // Check Nginx config to see which environment is currently active
-                        // Use grep -q to suppress output and only check exit status
-                        def isBlue = sh(script: "grep -q 'server app_blue:8000' nginx/nginx.conf", returnStatus: true) == 0
+                        // Looking for 'set $active_app app_blue;'
+                        def isBlue = sh(script: "grep -q 'set \\\$active_app app_blue;' nginx/nginx.conf", returnStatus: true) == 0
                         
                         if (isBlue) {
                             env.TARGET_ENV = 'green'
@@ -71,16 +71,18 @@ pipeline {
             steps {
                 dir("${PROJECT_DIR}") {
                     script {
-                        echo "Switching traffic from ${env.CURRENT_ENV} to ${env.TARGET_ENV}..."
-                        // Update Nginx config
-                        if (env.TARGET_ENV == 'green') {
-                            sh "sed -i 's/server app_blue:8000/server app_green:8000/' nginx/nginx.conf"
-                        } else {
-                            sh "sed -i 's/server app_green:8000/server app_blue:8000/' nginx/nginx.conf"
-                        }
+                        echo "Switching traffic to ${env.TARGET_ENV}..."
                         
+                        // Update the variable in Nginx config
+                        sh "sed -i 's/set \\\$active_app app_[a-z]\\+;/set \\\$active_app app_${env.TARGET_ENV};/' nginx/nginx.conf"
+                        
+                        // Force a small delay to ensure file propagation
+                        sleep 2
+                        
+                        echo "Reloading Nginx config..."
                         // Zero-downtime reload Nginx
                         sh "docker exec nginx_lb nginx -s reload"
+                        
                         echo "Traffic switched successfully to ${VERSION} on ${env.TARGET_ENV}."
                     }
                 }
