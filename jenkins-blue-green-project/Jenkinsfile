@@ -90,19 +90,21 @@ pipeline {
 
     post {
         failure {
-            dir("${PROJECT_DIR}") {
-                script {
-                    echo "Pipeline failed! Rolling back/Cleaning up..."
-                    echo "Stopping the failed ${env.TARGET_ENV} deployment..."
-                    sh "docker-compose stop app_${env.TARGET_ENV} || true"
-                    sh "docker-compose rm -f app_${env.TARGET_ENV} || true"
-                    
-                    emailext (
-                        subject: "DEPLOYMENT FAILED: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
-                        body: "Blue-Green deployment failed during '${env.STAGE_NAME}'. Rolled back to ${env.CURRENT_ENV}.",
-                        to: 'mkcheriyan997@gmail.com'
-                    )
+            script {
+                echo "Pipeline failed! Rolling back/Cleaning up..."
+                if (env.TARGET_ENV) {
+                    dir("${PROJECT_DIR}") {
+                        echo "Stopping the failed ${env.TARGET_ENV} deployment..."
+                        sh "docker-compose stop app_${env.TARGET_ENV} || true"
+                        sh "docker-compose rm -f app_${env.TARGET_ENV} || true"
+                    }
                 }
+                
+                emailext (
+                    subject: "DEPLOYMENT FAILED: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
+                    body: "Blue-Green deployment failed during '${env.STAGE_NAME}'. Rolled back.",
+                    to: 'mkcheriyan997@gmail.com'
+                )
             }
         }
         success {
