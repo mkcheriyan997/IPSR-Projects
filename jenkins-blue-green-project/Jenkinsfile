@@ -17,12 +17,10 @@ pipeline {
         stage('Determine Target Environment') {
             steps {
                 script {
-                    // Path to the LIVE Nginx config on the EC2 disk
+                    // Absolute path to the ground truth on the EC2 disk
                     def liveNginxConfig = "/home/ec2-user/ipsr_repo/jenkins-blue-green-project/nginx/nginx.conf"
                     
-                    // Debug: Show the live config state
-                    sh "cat ${liveNginxConfig} | grep active_app"
-                    
+                    echo "Checking live state at ${liveNginxConfig}..."
                     def isBlue = sh(script: "grep -q 'app_blue' ${liveNginxConfig}", returnStatus: true) == 0
                     
                     if (isBlue) {
