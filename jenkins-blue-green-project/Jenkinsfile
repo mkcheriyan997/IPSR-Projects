@@ -18,9 +18,10 @@ pipeline {
             steps {
                 dir("${PROJECT_DIR}") {
                     script {
-                        // Check Nginx config to see which environment is currently active
-                        // Looking for 'set $active_app app_blue;'
-                        def isBlue = sh(script: "grep -q 'set \\\$active_app app_blue;' nginx/nginx.conf", returnStatus: true) == 0
+                        // Debug: Show the current config state
+                        sh "cat nginx/nginx.conf | grep active_app"
+                        
+                        def isBlue = sh(script: "grep -q 'app_blue' nginx/nginx.conf", returnStatus: true) == 0
                         
                         if (isBlue) {
                             env.TARGET_ENV = 'green'
@@ -43,7 +44,6 @@ pipeline {
                 dir("${PROJECT_DIR}") {
                     script {
                         echo "Deploying Version ${VERSION} to ${env.TARGET_ENV}..."
-                        // Disable BuildKit to avoid Buildx 0.17+ requirement on this EC2
                         sh "DOCKER_BUILDKIT=0 VERSION=${VERSION} docker-compose up -d --build app_${env.TARGET_ENV}"
                     }
                 }
@@ -55,11 +55,10 @@ pipeline {
                 dir("${PROJECT_DIR}") {
                     script {
                         echo "Running smoke tests on ${env.TARGET_ENV} (localhost:${env.TARGET_PORT})..."
-                        // Wait a few seconds for the app to start
                         sleep 5
                         def response = sh(script: "curl -s http://localhost:${env.TARGET_PORT}/health", returnStdout: true).trim()
                         if (response != "OK") {
-                            error "Smoke test failed! Application on ${env.TARGET_ENV} is not healthy."
+                            error "Smoke test failed!"
                         }
                         echo "Smoke test passed!"
                     }
@@ -73,12 +72,16 @@ pipeline {
                     script {
                         echo "Switching traffic to ${env.TARGET_ENV}..."
                         
-                        // Update the variable in the Nginx config (in the workspace)
-                        sh "sed -i 's/set \\\$active_app app_[a-z]\\+;/set \\\$active_app app_${env.TARGET_ENV};/' nginx/nginx.conf"
+                        // Update the variable in the Nginx config
+                        sh "sed -i 's/app_blue/app_${env.TARGET_ENV}/g' nginx/nginx.conf"
+                        sh "sed -i 's/app_green/app_${env.TARGET_ENV}/g' nginx/nginx.conf"
                         
                         echo "Reloading Nginx config..."
-                        // Force Nginx to reload the configuration file immediately
                         sh "docker exec nginx_lb nginx -s reload"
+                        
+                        // Verify the switch
+                        sleep 2
+                        sh "docker exec nginx_lb cat /etc/nginx/nginx.conf | grep active_app"
                         
                         echo "Traffic switched successfully to ${VERSION} on ${env.TARGET_ENV}."
                     }
