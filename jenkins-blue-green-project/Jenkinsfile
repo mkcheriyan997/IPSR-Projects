@@ -4,7 +4,7 @@ pipeline {
     environment {
         APP_NAME = 'blue-green-app'
         VERSION = "2.0.${env.BUILD_ID}"
-        PROJECT_DIR = '.'
+        PROJECT_DIR = 'jenkins-blue-green-project'
     }
 
     stages {
