@@ -77,9 +77,9 @@ pipeline {
                     sh "sed -i 's/app_blue/app_${env.TARGET_ENV}/g' ${liveNginxConfig}"
                     sh "sed -i 's/app_green/app_${env.TARGET_ENV}/g' ${liveNginxConfig}"
                     
-                    echo "Restarting Nginx to apply changes..."
-                    // A restart ensures that Docker fully re-mounts the file from the disk
-                    sh "docker restart nginx_lb"
+                    echo "Reloading Nginx config..."
+                    // Zero-downtime reload Nginx
+                    sh "docker exec nginx_lb nginx -s reload"
                     
                     echo "Traffic switched successfully to ${VERSION} on ${env.TARGET_ENV}."
                 }
