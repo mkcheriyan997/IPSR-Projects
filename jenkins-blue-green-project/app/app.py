@@ -6,7 +6,7 @@ VERSION = os.environ.get('APP_VERSION', '2.0')
 COLOR = os.environ.get('APP_COLOR', 'blue')
 
 @app.route('/')
-def hello()
+def hello():
     return f"""
     <body style="background-color: {COLOR}; color: white; text-align: center; padding-top: 100px; font-family: sans-serif;">
         <h1>Application Version {VERSION}</h1>
