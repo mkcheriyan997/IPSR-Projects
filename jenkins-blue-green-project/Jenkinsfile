@@ -16,25 +16,26 @@ pipeline {
 
         stage('Determine Target Environment') {
             steps {
-                dir("${PROJECT_DIR}") {
-                    script {
-                        // Debug: Show the current config state
-                        sh "cat nginx/nginx.conf | grep active_app"
-                        
-                        def isBlue = sh(script: "grep -q 'app_blue' nginx/nginx.conf", returnStatus: true) == 0
-                        
-                        if (isBlue) {
-                            env.TARGET_ENV = 'green'
-                            env.TARGET_PORT = '8002'
-                            env.CURRENT_ENV = 'blue'
-                        } else {
-                            env.TARGET_ENV = 'blue'
-                            env.TARGET_PORT = '8001'
-                            env.CURRENT_ENV = 'green'
-                        }
-                        echo "Current active environment: ${env.CURRENT_ENV}"
-                        echo "Deploying to target environment: ${env.TARGET_ENV} on port ${env.TARGET_PORT}"
+                script {
+                    // Path to the LIVE Nginx config on the EC2 disk
+                    def liveNginxConfig = "/home/ec2-user/ipsr_repo/jenkins-blue-green-project/nginx/nginx.conf"
+                    
+                    // Debug: Show the live config state
+                    sh "cat ${liveNginxConfig} | grep active_app"
+                    
+                    def isBlue = sh(script: "grep -q 'app_blue' ${liveNginxConfig}", returnStatus: true) == 0
+                    
+                    if (isBlue) {
+                        env.TARGET_ENV = 'green'
+                        env.TARGET_PORT = '8002'
+                        env.CURRENT_ENV = 'blue'
+                    } else {
+                        env.TARGET_ENV = 'blue'
+                        env.TARGET_PORT = '8001'
+                        env.CURRENT_ENV = 'green'
                     }
+                    echo "Current active environment: ${env.CURRENT_ENV}"
+                    echo "Deploying to target environment: ${env.TARGET_ENV} on port ${env.TARGET_PORT}"
                 }
             }
         }
@@ -68,27 +69,20 @@ pipeline {
 
         stage('Switch Traffic') {
             steps {
-                dir("${PROJECT_DIR}") {
-                    script {
-                        echo "Switching traffic to ${env.TARGET_ENV}..."
-                        
-                        // Update the variable in the Nginx config
-                        sh "sed -i 's/app_blue/app_${env.TARGET_ENV}/g' nginx/nginx.conf"
-                        sh "sed -i 's/app_green/app_${env.TARGET_ENV}/g' nginx/nginx.conf"
-                        
-                        echo "Reloading Nginx config..."
-                        sh "docker exec nginx_lb nginx -s reload"
-                        
-                        // Save the state back to Git so the next build knows who is live
-                        echo "Saving state to GitHub..."
-                        sh """
-                            git add nginx/nginx.conf
-                            git commit -m 'Update active environment to ${env.TARGET_ENV} [ci skip]' || echo 'No changes to commit'
-                            git push origin main
-                        """
-                        
-                        echo "Traffic switched successfully to ${VERSION} on ${env.TARGET_ENV}."
-                    }
+                script {
+                    echo "Switching traffic to ${env.TARGET_ENV}..."
+                    
+                    // Path to the LIVE Nginx config
+                    def liveNginxConfig = "/home/ec2-user/ipsr_repo/jenkins-blue-green-project/nginx/nginx.conf"
+                    
+                    // Update the variable in the LIVE Nginx config directly
+                    sh "sed -i 's/app_blue/app_${env.TARGET_ENV}/g' ${liveNginxConfig}"
+                    sh "sed -i 's/app_green/app_${env.TARGET_ENV}/g' ${liveNginxConfig}"
+                    
+                    echo "Reloading Nginx config..."
+                    sh "docker exec nginx_lb nginx -s reload"
+                    
+                    echo "Traffic switched successfully to ${VERSION} on ${env.TARGET_ENV}."
                 }
             }
         }
