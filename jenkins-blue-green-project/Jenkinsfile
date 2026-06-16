@@ -73,15 +73,13 @@ pipeline {
                     script {
                         echo "Switching traffic to ${env.TARGET_ENV}..."
                         
-                        // Update the variable in the Nginx config
+                        // Update the variable in the Nginx config (in the workspace)
                         sh "sed -i 's/set \\\$active_app app_[a-z]\\+;/set \\\$active_app app_${env.TARGET_ENV};/' nginx/nginx.conf"
                         
-                        // Force a small delay to ensure file propagation
-                        sleep 2
-                        
-                        echo "Reloading Nginx config..."
-                        // Zero-downtime reload Nginx
-                        sh "docker exec nginx_lb nginx -s reload"
+                        echo "Updating Nginx container with new config..."
+                        // Using docker-compose up -d nginx ensures that Docker picks up the 
+                        // updated nginx.conf file from the Jenkins workspace and applies it.
+                        sh "docker-compose up -d nginx"
                         
                         echo "Traffic switched successfully to ${VERSION} on ${env.TARGET_ENV}."
                     }
