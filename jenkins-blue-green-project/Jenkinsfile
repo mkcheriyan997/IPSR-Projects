@@ -79,9 +79,13 @@ pipeline {
                         echo "Reloading Nginx config..."
                         sh "docker exec nginx_lb nginx -s reload"
                         
-                        // Verify the switch
-                        sleep 2
-                        sh "docker exec nginx_lb cat /etc/nginx/nginx.conf | grep active_app"
+                        // Save the state back to Git so the next build knows who is live
+                        echo "Saving state to GitHub..."
+                        sh """
+                            git add nginx/nginx.conf
+                            git commit -m 'Update active environment to ${env.TARGET_ENV} [ci skip]' || echo 'No changes to commit'
+                            git push origin main
+                        """
                         
                         echo "Traffic switched successfully to ${VERSION} on ${env.TARGET_ENV}."
                     }
