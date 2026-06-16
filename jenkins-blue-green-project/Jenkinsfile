@@ -73,8 +73,11 @@ pipeline {
                     script {
                         echo "Switching traffic to ${env.TARGET_ENV}..."
                         
-                        // Update the variable in Nginx config
-                        sh "sed -i 's/set \\\$active_app app_[a-z]\\+;/set \\\$active_app app_${env.TARGET_ENV};/' nginx/nginx.conf"
+                        // Path to the live Nginx config used by the Docker container
+                        def liveNginxConfig = "/home/ec2-user/ipsr_repo/jenkins-blue-green-project/nginx/nginx.conf"
+                        
+                        // Update the variable in the LIVE Nginx config
+                        sh "sed -i 's/set \\\$active_app app_[a-z]\\+;/set \\\$active_app app_${env.TARGET_ENV};/' ${liveNginxConfig}"
                         
                         // Force a small delay to ensure file propagation
                         sleep 2
