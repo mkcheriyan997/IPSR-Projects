@@ -19,9 +19,10 @@ pipeline {
                 dir("${PROJECT_DIR}") {
                     script {
                         // Check Nginx config to see which environment is currently active
-                        def currentEnv = sh(script: "grep 'server app_blue:8000' nginx/nginx.conf && echo 'blue' || echo 'green'", returnStdout: true).trim()
+                        // Use grep -q to suppress output and only check exit status
+                        def isBlue = sh(script: "grep -q 'server app_blue:8000' nginx/nginx.conf", returnStatus: true) == 0
                         
-                        if (currentEnv == 'blue') {
+                        if (isBlue) {
                             env.TARGET_ENV = 'green'
                             env.TARGET_PORT = '8002'
                             env.CURRENT_ENV = 'blue'
@@ -42,7 +43,8 @@ pipeline {
                 dir("${PROJECT_DIR}") {
                     script {
                         echo "Deploying Version ${VERSION} to ${env.TARGET_ENV}..."
-                        sh "VERSION=${VERSION} docker-compose up -d --build app_${env.TARGET_ENV}"
+                        // Disable BuildKit to avoid Buildx 0.17+ requirement on this EC2
+                        sh "DOCKER_BUILDKIT=0 VERSION=${VERSION} docker-compose up -d --build app_${env.TARGET_ENV}"
                     }
                 }
             }
