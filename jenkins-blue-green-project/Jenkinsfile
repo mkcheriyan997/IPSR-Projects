@@ -4,7 +4,7 @@ pipeline {
     environment {
         APP_NAME = 'blue-green-app'
         VERSION = "2.0.${env.BUILD_ID}"
-        PROJECT_DIR = 'jenkins-blue-green-project'
+        PROJECT_DIR = '.'
     }
 
     stages {
@@ -77,8 +77,8 @@ pipeline {
                             sh "sed -i 's/server app_green:8000/server app_blue:8000/' nginx/nginx.conf"
                         }
                         
-                        // Reload Nginx or restart container
-                        sh "docker-compose up -d nginx"
+                        // Zero-downtime reload Nginx
+                        sh "docker exec nginx_lb nginx -s reload"
                         echo "Traffic switched successfully to ${VERSION} on ${env.TARGET_ENV}."
                     }
                 }
@@ -93,6 +93,7 @@ pipeline {
                     echo "Pipeline failed! Rolling back/Cleaning up..."
                     echo "Stopping the failed ${env.TARGET_ENV} deployment..."
                     sh "docker-compose stop app_${env.TARGET_ENV} || true"
+                    sh "docker-compose rm -f app_${env.TARGET_ENV} || true"
                     
                     emailext (
                         subject: "DEPLOYMENT FAILED: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
