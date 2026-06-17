@@ -1,0 +1,163 @@
+---
+- name: Setup LEMP stack with WordPress, SFTP and phpMyAdmin
+  hosts: webserver
+  become: yes
+  vars:
+    username: wpadmin
+    website_name: MyWebsiteProject
+    domain: mlolad.xyz
+    db_name: wordpress_db
+    db_user: wp_user
+    db_password: wp_password123
+    wp_admin_user: wpadmin
+    wp_admin_password: AdminPass123!
+    wp_admin_email: admin@mlolad.xyz
+
+  tasks:
+    - name: Install LEMP packages
+      dnf:
+        name:
+          - nginx
+          - mariadb1011-server
+          - php8.2
+          - php8.2-fpm
+          - php8.2-mysqlnd
+          - php8.2-gd
+          - php8.2-intl
+          - php8.2-mbstring
+          - php8.2-xml
+          - php8.2-zip
+          - certbot
+          - python3-certbot-nginx
+        state: present
+        allowerasing: yes
+
+    - name: Ensure services are started and enabled
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - nginx
+        - mariadb
+        - php-fpm
+
+    - name: Create sftp_users group
+      group:
+        name: sftp_users
+        state: present
+
+    - name: Create wpadmin user
+      user:
+        name: "{{ username }}"
+        groups: sftp_users
+        shell: /sbin/nologin
+        password: "{{ 'wpadmin123' | password_hash('sha512') }}"
+        home: "/home/{{ username }}"
+
+    - name: Set permissions on home directory for SFTP chroot
+      file:
+        path: "/home/{{ username }}"
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create website directories
+      file:
+        path: "/home/{{ username }}/{{ website_name }}/public"
+        state: directory
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: '0755'
+        recurse: yes
+
+    - name: Configure SSH for SFTP chroot
+      blockinfile:
+        path: /etc/ssh/sshd_config
+        marker: "# {mark} ANSIBLE MANAGED SFTP BLOCK"
+        block: |
+          Match Group sftp_users
+              ChrootDirectory %h
+              ForceCommand internal-sftp
+              AllowTcpForwarding no
+              X11Forwarding no
+              PasswordAuthentication yes
+      notify: restart sshd
+
+    - name: Create MariaDB database
+      mysql_db:
+        name: "{{ db_name }}"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Create MariaDB user
+      mysql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        priv: "{{ db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Download WordPress
+      get_url:
+        url: https://wordpress.org/latest.tar.gz
+        dest: /tmp/wordpress.tar.gz
+
+    - name: Extract WordPress
+      unarchive:
+        src: /tmp/wordpress.tar.gz
+        dest: /tmp
+        remote_src: yes
+
+    - name: Move WordPress files to public directory
+      shell: "cp -rn /tmp/wordpress/* /home/{{ username }}/{{ website_name }}/public/"
+      args:
+        creates: "/home/{{ username }}/{{ website_name }}/public/wp-config-sample.php"
+
+    - name: Set ownership on WordPress files
+      file:
+        path: "/home/{{ username }}/{{ website_name }}/public"
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        recurse: yes
+
+    - name: Install WP-CLI
+      get_url:
+        url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+        dest: /usr/local/bin/wp
+        mode: '0755'
+
+    - name: Configure WordPress
+      become_user: "{{ username }}"
+      shell: |
+        wp config create --dbname={{ db_name }} --dbuser={{ db_user }} --dbpass={{ db_password }} --path=/home/{{ username }}/{{ website_name }}/public --allow-root --skip-check
+      args:
+        creates: "/home/{{ username }}/{{ website_name }}/public/wp-config.php"
+
+    - name: Install WordPress Core
+      become_user: "{{ username }}"
+      shell: |
+        wp core install --url=https://{{ domain }} --title="My Personal Blog" --admin_user={{ wp_admin_user }} --admin_password="{{ wp_admin_password }}" --admin_email={{ wp_admin_email }} --path=/home/{{ username }}/{{ website_name }}/public --allow-root
+      register: wp_install
+      failed_when: 
+        - "'Success' not in wp_install.stdout"
+        - "'already installed' not in wp_install.stdout"
+      changed_when: "'Success' in wp_install.stdout"
+
+    - name: Create blog post
+      become_user: "{{ username }}"
+      shell: |
+        wp post create --post_type=post --post_title='About Me' --post_content='Hello! I am the administrator of this blog. I love technology and setting up servers.' --post_status=publish --path=/home/{{ username }}/{{ website_name }}/public --allow-root
+      args:
+        creates: "/home/{{ username }}/{{ website_name }}/public/ansible_post_created.txt"
+    
+    - name: Mark post as created
+      file:
+        path: "/home/{{ username }}/{{ website_name }}/public/ansible_post_created.txt"
+        state: touch
+
+  handlers:
+    - name: restart sshd
+      systemd:
+        name: sshd
+        state: restarted
