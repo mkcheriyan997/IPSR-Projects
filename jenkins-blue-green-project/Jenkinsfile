@@ -19,10 +19,10 @@ pipeline {
                 script {
                     // Absolute path to the ground truth on the EC2 disk
                     def liveNginxConfig = "/home/ec2-user/ipsr_repo/jenkins-blue-green-project/nginx/nginx.conf"
-                    
+
                     echo "Checking live state at ${liveNginxConfig}..."
                     def isBlue = sh(script: "grep -q 'app_blue' ${liveNginxConfig}", returnStatus: true) == 0
-                    
+
                     if (isBlue) {
                         env.TARGET_ENV = 'green'
                         env.TARGET_PORT = '8002'
@@ -69,18 +69,18 @@ pipeline {
             steps {
                 script {
                     echo "Switching traffic to ${env.TARGET_ENV}..."
-                    
+
                     // Path to the LIVE Nginx config
                     def liveNginxConfig = "/home/ec2-user/ipsr_repo/jenkins-blue-green-project/nginx/nginx.conf"
-                    
+
                     // Update the variable in the LIVE Nginx config directly
                     sh "sed -i 's/app_blue/app_${env.TARGET_ENV}/g' ${liveNginxConfig}"
                     sh "sed -i 's/app_green/app_${env.TARGET_ENV}/g' ${liveNginxConfig}"
-                    
+
                     echo "Reloading Nginx config..."
                     // Zero-downtime reload Nginx
                     sh "docker exec nginx_lb nginx -s reload"
-                    
+
                     echo "Traffic switched successfully to ${VERSION} on ${env.TARGET_ENV}."
                 }
             }
@@ -98,7 +98,7 @@ pipeline {
                         sh "docker-compose rm -f app_${env.TARGET_ENV} || true"
                     }
                 }
-                
+
                 emailext (
                     subject: "DEPLOYMENT FAILED: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
                     body: "Blue-Green deployment failed during '${env.STAGE_NAME}'. Rolled back.",
@@ -109,8 +109,8 @@ pipeline {
         success {
             echo "Deployment Successful!"
             emailext (
-                subject: "DEPLOYMENT SUCCESS: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
-                body: "Blue-Green deployment successful. Version ${VERSION} is now live on ${env.TARGET_ENV}.",
+                subject: "DEPLOYMENT SUCCESSFUL: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
+                body: "Successfully deployed ${VERSION} to ${env.TARGET_ENV}.",
                 to: 'mkcheriyan997@gmail.com'
             )
         }

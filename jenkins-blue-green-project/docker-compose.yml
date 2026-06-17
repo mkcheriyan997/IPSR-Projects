@@ -3,7 +3,7 @@ services:
     build: ./app
     container_name: app_blue
     environment:
-      - APP_VERSION=${VERSION:-1.0}
+      - APP_VERSION=\${VERSION:-1.0}
       - APP_COLOR=blue
     ports:
       - "8001:8000"
@@ -13,7 +13,7 @@ services:
     build: ./app
     container_name: app_green
     environment:
-      - APP_VERSION=${VERSION:-1.0}
+      - APP_VERSION=\${VERSION:-1.0}
       - APP_COLOR=green
     ports:
       - "8002:8000"
@@ -24,8 +24,11 @@ services:
     container_name: nginx_lb
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx:/etc/nginx:ro
+      - /etc/letsencrypt/live/mlolad.xyz/fullchain.pem:/etc/ssl/fullchain.pem:ro
+      - /etc/letsencrypt/live/mlolad.xyz/privkey.pem:/etc/ssl/privkey.pem:ro
     depends_on:
       - app_blue
       - app_green
