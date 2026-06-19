@@ -1,0 +1,8 @@
+    - name: Manage selected operating system packages
+      ansible.builtin.package:
+        name:
+{% for package_name in package_names %}
+          - "{{ package_name }}"
+{% endfor %}
+        state: {{ package_state | default('present') }}
+

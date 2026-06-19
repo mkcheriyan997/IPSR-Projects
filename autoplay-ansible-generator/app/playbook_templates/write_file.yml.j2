@@ -1,0 +1,7 @@
+    - name: Write managed file "{{ file_path }}"
+      ansible.builtin.copy:
+        dest: "{{ file_path }}"
+        mode: "{{ file_mode | default('0644') }}"
+        content: |
+{{ file_content | indent(10, true) }}
+

@@ -1,0 +1,8 @@
+    - name: Manage cron job "{{ cron_name }}"
+      ansible.builtin.cron:
+        name: "{{ cron_name }}"
+        minute: "{{ cron_minute | default('0') }}"
+        hour: "{{ cron_hour | default('2') }}"
+        job: "{{ cron_job }}"
+        state: {{ cron_state | default('present') }}
+

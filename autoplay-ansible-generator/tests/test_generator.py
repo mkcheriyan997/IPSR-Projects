@@ -1,6 +1,7 @@
 import sys
 import os
 import unittest
+import yaml
 
 # Adjust path to import from app
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -78,6 +79,38 @@ class TestPlaybookGenerator(unittest.TestCase):
         
         result_pb = generate_playbook({'playbook_name': 'Test Localhost Env', 'target_hosts': 'localhost'}, [])
         self.assertIn('hosts: hosts_localhost', result_pb)
+
+    def test_all_task_templates_generate_valid_yaml(self):
+        tasks = [
+            {'type': 'install_nginx'},
+            {'type': 'install_apache'},
+            {'type': 'install_mariadb'},
+            {'type': 'install_docker'},
+            {'type': 'manage_packages', 'package_names': 'curl\ngit', 'package_state': 'present'},
+            {'type': 'manage_service', 'service_name': 'nginx', 'service_state': 'started', 'service_enabled': 'yes'},
+            {'type': 'system_update', 'update_mode': 'all', 'update_reboot': 'no'},
+            {'type': 'create_user', 'user_name': 'webadmin', 'user_group': 'devops', 'user_shell': '/bin/bash'},
+            {'type': 'create_directory', 'directory_path': '/opt/demo', 'directory_owner': 'root', 'directory_group': 'root', 'directory_mode': '0755'},
+            {'type': 'write_file', 'file_path': '/tmp/demo.txt', 'file_mode': '0644', 'file_content': 'Managed by AutoPlay'},
+            {'type': 'git_clone', 'git_repo': 'https://github.com/example/project.git', 'git_dest': '/opt/project', 'git_version': 'main'},
+            {'type': 'host_entry', 'host_ip': '127.0.0.1', 'host_names': 'app.internal app', 'host_state': 'present'},
+            {'type': 'cron_job', 'cron_name': 'disk report', 'cron_minute': '0', 'cron_hour': '2', 'cron_job': '/usr/bin/df -h', 'cron_state': 'present'},
+            {'type': 'set_hostname', 'hostname_name': 'autoplay-node'},
+            {'type': 'configure_timezone', 'timezone_name': 'UTC'},
+            {'type': 'firewall', 'firewall_port': '80', 'firewall_protocol': 'tcp'},
+            {'type': 'deploy_container', 'container_name': 'demo', 'container_image': 'nginx:alpine', 'container_ports': '8080:80'},
+            {'type': 'custom_command', 'custom_command_name': 'Show uptime', 'custom_command_body': 'uptime'},
+        ]
+
+        for task in tasks:
+            with self.subTest(task=task['type']):
+                result = generate_playbook(
+                    {'playbook_name': 'Catalog Test', 'target_hosts': 'all', 'become_privilege': 'yes'},
+                    [task.copy()]
+                )
+                parsed = yaml.safe_load(result)
+                self.assertIsInstance(parsed, list)
+                self.assertTrue(parsed[0]['tasks'])
 
 if __name__ == '__main__':
     unittest.main()

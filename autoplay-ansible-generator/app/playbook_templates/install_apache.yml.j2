@@ -1,0 +1,27 @@
+    - name: Install Apache on Debian and Ubuntu
+      ansible.builtin.apt:
+        name: apache2
+        state: present
+        update_cache: true
+      when: ansible_os_family == 'Debian'
+
+    - name: Install Apache on Red Hat family systems
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+    - name: Manage Apache service on Debian and Ubuntu
+      ansible.builtin.service:
+        name: apache2
+        state: {{ apache_service_state | default('started') }}
+        enabled: {{ apache_service_enabled | default('yes') }}
+      when: ansible_os_family == 'Debian'
+
+    - name: Manage Apache service on Red Hat family systems
+      ansible.builtin.service:
+        name: httpd
+        state: {{ apache_service_state | default('started') }}
+        enabled: {{ apache_service_enabled | default('yes') }}
+      when: ansible_os_family == 'RedHat'
+

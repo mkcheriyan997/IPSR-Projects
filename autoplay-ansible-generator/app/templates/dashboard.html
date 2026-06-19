@@ -1,10 +1,30 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
+<section class="workspace-hero mb-4">
+    <div>
+        <span class="eyebrow"><i class="bi bi-stars"></i> Infrastructure automation workspace</span>
+        <h1>Build reliable server workflows without writing YAML from scratch.</h1>
+        <p>Choose production-ready task modules, configure a target, inspect the generated playbook, and execute with a complete audit trail.</p>
+    </div>
+    <div class="hero-metrics">
+        <div><strong>18</strong><span>Task modules</span></div>
+        <div><strong>4</strong><span>Safety stages</span></div>
+        <div><strong>1-click</strong><span>Dry run</span></div>
+    </div>
+</section>
+
+<div class="workflow-steps mb-4" aria-label="Workflow steps">
+    <span class="active"><b>1</b> Target</span>
+    <span><b>2</b> Build</span>
+    <span><b>3</b> Review</span>
+    <span><b>4</b> Execute</span>
+</div>
+
+<div class="row g-4">
     <!-- Builder column -->
     <div class="col-lg-7 col-md-12 mb-4">
-        <div class="card shadow-sm border-0 mb-4 bg-card">
+        <div class="card shadow-sm border-0 mb-4 bg-card workspace-card">
             <div class="card-header border-0 bg-transparent py-3">
                 <h5 class="card-title fw-bold mb-0 text-white d-flex align-items-center">
                     <i class="bi bi-sliders me-2 text-info"></i> Playbook Metadata & Inventory
@@ -45,7 +65,7 @@
         </div>
 
         <!-- Task Selector card -->
-        <div class="card shadow-sm border-0 mb-4 bg-card">
+        <div class="card shadow-sm border-0 mb-4 bg-card workspace-card">
             <div class="card-header border-0 bg-transparent py-3 d-flex justify-content-between align-items-center">
                 <h5 class="card-title fw-bold mb-0 text-white d-flex align-items-center">
                     <i class="bi bi-stack me-2 text-info"></i> Configure Automation Tasks
@@ -53,16 +73,63 @@
                 <span class="badge bg-dark-subtle border border-secondary text-light" id="task-counter">0 Tasks</span>
             </div>
             <div class="card-body pt-0 text-light">
-                <div class="p-3 rounded mb-3 bg-secondary-dark d-flex align-items-center gap-3">
+                <div class="task-library mb-3">
+                    <div class="task-library-heading">
+                        <div>
+                            <span class="eyebrow">Module catalog</span>
+                            <h6>Choose an automation building block</h6>
+                        </div>
+                        <div class="task-search-wrap">
+                            <i class="bi bi-search"></i>
+                            <input type="search" id="task-search" placeholder="Search 18 modules" aria-label="Search task modules">
+                        </div>
+                    </div>
+                    <div class="task-quick-grid" id="task-quick-grid">
+                        <button type="button" data-task-type="install_nginx"><i class="bi bi-globe2"></i><span>Nginx</span><small>Web</small></button>
+                        <button type="button" data-task-type="install_apache"><i class="bi bi-server"></i><span>Apache</span><small>Web</small></button>
+                        <button type="button" data-task-type="install_docker"><i class="bi bi-boxes"></i><span>Docker</span><small>Containers</small></button>
+                        <button type="button" data-task-type="install_mariadb"><i class="bi bi-database"></i><span>MariaDB</span><small>Database</small></button>
+                        <button type="button" data-task-type="manage_packages"><i class="bi bi-box-seam"></i><span>Packages</span><small>System</small></button>
+                        <button type="button" data-task-type="manage_service"><i class="bi bi-toggles"></i><span>Service</span><small>System</small></button>
+                        <button type="button" data-task-type="create_user"><i class="bi bi-person-plus"></i><span>User</span><small>Identity</small></button>
+                        <button type="button" data-task-type="create_directory"><i class="bi bi-folder-plus"></i><span>Directory</span><small>Files</small></button>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded mb-3 bg-secondary-dark d-flex align-items-center gap-3 task-selector-row">
                     <div class="flex-grow-1">
                         <select class="form-select bg-input text-white border-secondary" id="task-type-selector">
                             <option value="" disabled selected>-- Select a Task Template to Add --</option>
-                            <option value="install_nginx">🌐 Install and Configure Nginx</option>
-                            <option value="install_docker">🐳 Install and Start Docker Engine</option>
-                            <option value="create_user">👤 Create Linux System User</option>
-                            <option value="deploy_container">📦 Deploy Docker Container</option>
-                            <option value="firewall">🛡️ Configure Firewall (Open Port)</option>
-                            <option value="custom_command">🐚 Execute Custom Bash/Shell Script</option>
+                            <optgroup label="Web & database">
+                                <option value="install_nginx">Install and Configure Nginx</option>
+                                <option value="install_apache">Install and Configure Apache</option>
+                                <option value="install_mariadb">Install and Configure MariaDB</option>
+                            </optgroup>
+                            <optgroup label="Packages & services">
+                                <option value="manage_packages">Install or Remove Packages</option>
+                                <option value="manage_service">Manage a System Service</option>
+                                <option value="system_update">Update Operating System Packages</option>
+                                <option value="install_docker">Install and Start Docker Engine</option>
+                            </optgroup>
+                            <optgroup label="Files & source control">
+                                <option value="create_directory">Create and Permission Directory</option>
+                                <option value="write_file">Create a Managed Text File</option>
+                                <option value="git_clone">Clone or Update Git Repository</option>
+                                <option value="host_entry">Manage /etc/hosts Entry</option>
+                            </optgroup>
+                            <optgroup label="Identity & scheduling">
+                                <option value="create_user">Create Linux System User</option>
+                                <option value="cron_job">Create or Remove Cron Job</option>
+                            </optgroup>
+                            <optgroup label="Host configuration">
+                                <option value="set_hostname">Set System Hostname</option>
+                                <option value="configure_timezone">Configure System Timezone</option>
+                                <option value="firewall">Configure Firewall Port</option>
+                            </optgroup>
+                            <optgroup label="Containers & advanced">
+                                <option value="deploy_container">Deploy Docker Container</option>
+                                <option value="custom_command">Execute Custom Shell Script</option>
+                            </optgroup>
                         </select>
                     </div>
                     <button type="button" class="btn btn-info px-4 fw-bold" id="add-task-btn">
@@ -90,7 +157,7 @@
 
     <!-- Live Preview column -->
     <div class="col-lg-5 col-md-12">
-        <div class="card shadow-sm border-0 mb-4 bg-card h-100 d-flex flex-column" id="preview-section" style="min-height: 600px;">
+        <div class="card shadow-sm border-0 mb-4 bg-card h-100 d-flex flex-column workspace-card preview-card" id="preview-section" style="min-height: 600px;">
             <div class="card-header border-0 bg-transparent py-3 d-flex justify-content-between align-items-center">
                 <h5 class="card-title fw-bold mb-0 text-white d-flex align-items-center">
                     <i class="bi bi-eye me-2 text-info"></i> Real-time Playbook Preview
@@ -301,6 +368,82 @@
                 <textarea class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="custom_command_body" rows="3" placeholder="echo 'Performing server configuration...'" required></textarea>
             </div>
         </div>
+    </div>
+
+    <div class="task-form-def" data-type="manage_packages">
+        <div class="row">
+            <div class="col-md-8 mb-2"><label class="form-label small text-muted">Packages (one per line)</label><textarea class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="package_names" rows="3" required>curl
+git
+unzip</textarea></div>
+            <div class="col-md-4 mb-2"><label class="form-label small text-muted">Desired State</label><select class="form-select bg-input text-white border-secondary small" name="package_state"><option value="present">Installed</option><option value="latest">Latest</option><option value="absent">Removed</option></select></div>
+        </div>
+    </div>
+
+    <div class="task-form-def" data-type="manage_service">
+        <div class="row">
+            <div class="col-md-4 mb-2"><label class="form-label small text-muted">Service Name</label><input class="form-control bg-input text-white border-secondary small" name="service_name" value="nginx" required></div>
+            <div class="col-md-4 mb-2"><label class="form-label small text-muted">State</label><select class="form-select bg-input text-white border-secondary small" name="service_state"><option>started</option><option>stopped</option><option>restarted</option><option>reloaded</option></select></div>
+            <div class="col-md-4 mb-2"><label class="form-label small text-muted">Enable at Boot</label><select class="form-select bg-input text-white border-secondary small" name="service_enabled"><option value="yes">Yes</option><option value="no">No</option></select></div>
+        </div>
+    </div>
+
+    <div class="task-form-def" data-type="create_directory">
+        <div class="row">
+            <div class="col-md-8 mb-2"><label class="form-label small text-muted">Directory Path</label><input class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="directory_path" value="/opt/autoplay-data" required></div>
+            <div class="col-md-4 mb-2"><label class="form-label small text-muted">Mode</label><input class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="directory_mode" value="0755" required></div>
+            <div class="col-md-6 mb-2"><label class="form-label small text-muted">Owner</label><input class="form-control bg-input text-white border-secondary small" name="directory_owner" value="root"></div>
+            <div class="col-md-6 mb-2"><label class="form-label small text-muted">Group</label><input class="form-control bg-input text-white border-secondary small" name="directory_group" value="root"></div>
+        </div>
+    </div>
+
+    <div class="task-form-def" data-type="write_file">
+        <div class="row">
+            <div class="col-md-8 mb-2"><label class="form-label small text-muted">Destination</label><input class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="file_path" value="/tmp/autoplay-managed.txt" required></div>
+            <div class="col-md-4 mb-2"><label class="form-label small text-muted">Mode</label><input class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="file_mode" value="0644"></div>
+            <div class="col-12 mb-2"><label class="form-label small text-muted">File Content</label><textarea class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="file_content" rows="4" required>Managed by AutoPlay</textarea></div>
+        </div>
+    </div>
+
+    <div class="task-form-def" data-type="git_clone">
+        <div class="row">
+            <div class="col-12 mb-2"><label class="form-label small text-muted">Repository URL</label><input class="form-control bg-input text-white border-secondary small" name="git_repo" placeholder="https://github.com/organization/project.git" required></div>
+            <div class="col-md-8 mb-2"><label class="form-label small text-muted">Destination</label><input class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="git_dest" value="/opt/application" required></div>
+            <div class="col-md-4 mb-2"><label class="form-label small text-muted">Branch / Tag</label><input class="form-control bg-input text-white border-secondary small" name="git_version" value="main"></div>
+        </div>
+    </div>
+
+    <div class="task-form-def" data-type="cron_job">
+        <div class="row">
+            <div class="col-md-6 mb-2"><label class="form-label small text-muted">Job Name</label><input class="form-control bg-input text-white border-secondary small" name="cron_name" value="AutoPlay maintenance" required></div>
+            <div class="col-md-3 mb-2"><label class="form-label small text-muted">Hour</label><input class="form-control bg-input text-white border-secondary small" name="cron_hour" value="2"></div>
+            <div class="col-md-3 mb-2"><label class="form-label small text-muted">Minute</label><input class="form-control bg-input text-white border-secondary small" name="cron_minute" value="0"></div>
+            <div class="col-md-9 mb-2"><label class="form-label small text-muted">Command</label><input class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="cron_job" value="/usr/bin/df -h >> /var/log/disk-usage.log" required></div>
+            <div class="col-md-3 mb-2"><label class="form-label small text-muted">State</label><select class="form-select bg-input text-white border-secondary small" name="cron_state"><option value="present">Present</option><option value="absent">Absent</option></select></div>
+        </div>
+    </div>
+
+    <div class="task-form-def" data-type="system_update">
+        <div class="row"><div class="col-md-6 mb-2"><label class="form-label small text-muted">Update Mode</label><select class="form-select bg-input text-white border-secondary small" name="update_mode"><option value="all">All packages</option><option value="security">Security updates (Red Hat)</option></select></div><div class="col-md-6 mb-2"><label class="form-label small text-muted">Reboot After Update</label><select class="form-select bg-input text-white border-secondary small" name="update_reboot"><option value="no">No</option><option value="yes">Yes</option></select></div></div>
+    </div>
+
+    <div class="task-form-def" data-type="set_hostname">
+        <div class="row"><div class="col-12 mb-2"><label class="form-label small text-muted">New Hostname</label><input class="form-control bg-input text-white border-secondary small" name="hostname_name" value="autoplay-node" required></div></div>
+    </div>
+
+    <div class="task-form-def" data-type="configure_timezone">
+        <div class="row"><div class="col-12 mb-2"><label class="form-label small text-muted">Timezone</label><input class="form-control bg-input text-white border-secondary small" name="timezone_name" value="UTC" placeholder="Asia/Kolkata" required></div></div>
+    </div>
+
+    <div class="task-form-def" data-type="install_apache">
+        <div class="row"><div class="col-md-6 mb-2"><label class="form-label small text-muted">Service State</label><select class="form-select bg-input text-white border-secondary small" name="apache_service_state"><option>started</option><option>stopped</option></select></div><div class="col-md-6 mb-2"><label class="form-label small text-muted">Enable at Boot</label><select class="form-select bg-input text-white border-secondary small" name="apache_service_enabled"><option value="yes">Yes</option><option value="no">No</option></select></div></div>
+    </div>
+
+    <div class="task-form-def" data-type="install_mariadb">
+        <div class="row"><div class="col-md-6 mb-2"><label class="form-label small text-muted">Service State</label><select class="form-select bg-input text-white border-secondary small" name="mariadb_service_state"><option>started</option><option>stopped</option></select></div><div class="col-md-6 mb-2"><label class="form-label small text-muted">Enable at Boot</label><select class="form-select bg-input text-white border-secondary small" name="mariadb_service_enabled"><option value="yes">Yes</option><option value="no">No</option></select></div></div>
+    </div>
+
+    <div class="task-form-def" data-type="host_entry">
+        <div class="row"><div class="col-md-4 mb-2"><label class="form-label small text-muted">IP Address</label><input class="form-control bg-input text-white border-secondary small" name="host_ip" value="127.0.0.1" required></div><div class="col-md-5 mb-2"><label class="form-label small text-muted">Hostname / Aliases</label><input class="form-control bg-input text-white border-secondary small" name="host_names" value="app.internal app" required></div><div class="col-md-3 mb-2"><label class="form-label small text-muted">State</label><select class="form-select bg-input text-white border-secondary small" name="host_state"><option value="present">Present</option><option value="absent">Absent</option></select></div></div>
     </div>
 </div>
 {% endblock %}

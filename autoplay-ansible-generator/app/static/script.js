@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const noTasksPlaceholder = document.getElementById('no-tasks-placeholder');
     const taskCounter = document.getElementById('task-counter');
     const generatePlaybookBtn = document.getElementById('generate-playbook-btn');
+    const taskSearch = document.getElementById('task-search');
+    const taskQuickGrid = document.getElementById('task-quick-grid');
 
     // Preview and Action panel elements
     const previewPlaceholder = document.getElementById('preview-placeholder');
@@ -30,13 +32,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Map task type to friendly name and icon
     const taskDetails = {
-        'install_nginx': { title: 'Install and Configure Nginx', icon: 'bi-globe' },
-        'install_docker': { title: 'Install and Start Docker Engine', icon: 'bi-ubuntu' },
-        'create_user': { title: 'Create Linux System User', icon: 'bi-person-add' },
-        'deploy_container': { title: 'Deploy Docker Container', icon: 'bi-box-seam' },
-        'firewall': { title: 'Configure Firewall (Open Port)', icon: 'bi-shield-lock' },
-        'custom_command': { title: 'Execute Custom Bash/Shell Script', icon: 'bi-terminal' }
+        'install_nginx': { title: 'Install and Configure Nginx', icon: 'bi-globe2', category: 'Web' },
+        'install_apache': { title: 'Install and Configure Apache', icon: 'bi-server', category: 'Web' },
+        'install_mariadb': { title: 'Install and Configure MariaDB', icon: 'bi-database', category: 'Database' },
+        'install_docker': { title: 'Install and Start Docker Engine', icon: 'bi-boxes', category: 'Containers' },
+        'manage_packages': { title: 'Install or Remove Packages', icon: 'bi-box-seam', category: 'System' },
+        'manage_service': { title: 'Manage a System Service', icon: 'bi-toggles', category: 'System' },
+        'system_update': { title: 'Update Operating System Packages', icon: 'bi-arrow-repeat', category: 'System' },
+        'create_user': { title: 'Create Linux System User', icon: 'bi-person-add', category: 'Identity' },
+        'create_directory': { title: 'Create and Permission Directory', icon: 'bi-folder-plus', category: 'Files' },
+        'write_file': { title: 'Create a Managed Text File', icon: 'bi-file-earmark-code', category: 'Files' },
+        'git_clone': { title: 'Clone or Update Git Repository', icon: 'bi-git', category: 'Source' },
+        'host_entry': { title: 'Manage /etc/hosts Entry', icon: 'bi-hdd-network', category: 'Network' },
+        'cron_job': { title: 'Create or Remove Cron Job', icon: 'bi-clock-history', category: 'Scheduling' },
+        'set_hostname': { title: 'Set System Hostname', icon: 'bi-pc-display', category: 'Host' },
+        'configure_timezone': { title: 'Configure System Timezone', icon: 'bi-clock', category: 'Host' },
+        'deploy_container': { title: 'Deploy Docker Container', icon: 'bi-box-seam', category: 'Containers' },
+        'firewall': { title: 'Configure Firewall Port', icon: 'bi-shield-lock', category: 'Network' },
+        'custom_command': { title: 'Execute Custom Shell Script', icon: 'bi-terminal', category: 'Advanced' }
     };
+
+    if (taskQuickGrid) {
+        taskQuickGrid.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-task-type]');
+            if (!button) return;
+            taskTypeSelector.value = button.dataset.taskType;
+            addTaskBtn.click();
+        });
+    }
+
+    if (taskSearch && taskQuickGrid) {
+        taskSearch.addEventListener('input', () => {
+            const query = taskSearch.value.trim().toLowerCase();
+            taskQuickGrid.querySelectorAll('[data-task-type]').forEach((button) => {
+                button.hidden = !button.textContent.toLowerCase().includes(query);
+            });
+        });
+    }
 
     // Toggle Preview Tabs
     if (btnShowYaml && btnShowIni) {
@@ -86,8 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Setup card inner structure
         taskCard.innerHTML = `
             <div class="task-card-header">
-                <span class="task-card-title text-info">
-                    <i class="bi ${info.icon} me-2"></i> ${info.title}
+                <span class="task-card-title">
+                    <span class="task-card-icon"><i class="bi ${info.icon}"></i></span>
+                    <span>${info.title}<small>${info.category} module</small></span>
                 </span>
                 <span class="task-remove-btn" title="Remove Task">
                     <i class="bi bi-trash fs-5"></i>

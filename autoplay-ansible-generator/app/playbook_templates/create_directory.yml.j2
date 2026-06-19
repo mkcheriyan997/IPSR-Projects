@@ -1,0 +1,8 @@
+    - name: Create managed directory "{{ directory_path }}"
+      ansible.builtin.file:
+        path: "{{ directory_path }}"
+        state: directory
+        owner: "{{ directory_owner | default('root') }}"
+        group: "{{ directory_group | default('root') }}"
+        mode: "{{ directory_mode | default('0755') }}"
+

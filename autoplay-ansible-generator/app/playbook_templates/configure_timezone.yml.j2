@@ -1,0 +1,8 @@
+    - name: Read current system timezone
+      ansible.builtin.command: timedatectl show --property=Timezone --value
+      register: autoplay_current_timezone
+      changed_when: false
+
+    - name: Configure system timezone
+      ansible.builtin.command: "timedatectl set-timezone {{ timezone_name | default('UTC') }}"
+      when: autoplay_current_timezone.stdout != timezone_name | default('UTC')

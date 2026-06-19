@@ -1,0 +1,7 @@
+    - name: Manage hosts entry for "{{ host_names }}"
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^{{ host_ip | replace('.', '\\.') }}\s+'
+        line: "{{ host_ip }} {{ host_names }}"
+        state: {{ host_state | default('present') }}
+        backup: true

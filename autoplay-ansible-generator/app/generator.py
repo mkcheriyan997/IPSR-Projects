@@ -56,6 +56,10 @@ def generate_playbook(header_vars, tasks_list):
                 env_str = task.get('container_env', '')
                 if isinstance(env_str, str):
                     task['container_env'] = [line.strip() for line in env_str.splitlines() if line.strip()]
+            elif task_type == 'manage_packages':
+                package_names = task.get('package_names', '')
+                if isinstance(package_names, str):
+                    task['package_names'] = [line.strip() for line in package_names.splitlines() if line.strip()]
                     
             template_filename = f"{task_type}.yml.j2"
             

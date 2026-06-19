@@ -1,0 +1,7 @@
+    - name: Checkout source repository into "{{ git_dest }}"
+      ansible.builtin.git:
+        repo: "{{ git_repo }}"
+        dest: "{{ git_dest }}"
+        version: "{{ git_version | default('main') }}"
+        update: true
+

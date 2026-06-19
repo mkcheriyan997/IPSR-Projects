@@ -18,7 +18,7 @@
 <body>
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark border-bottom">
-        <div class="container">
+        <div class="container-fluid app-shell">
             <a class="navbar-brand d-flex align-items-center" href="/dashboard">
                 <i class="bi bi-play-circle-fill me-2 text-info fs-3"></i>
                 <span class="fw-bold tracking-wider">Auto<span class="text-info">Play</span></span>
@@ -35,8 +35,8 @@
                         <a class="nav-link px-3" href="/history"><i class="bi bi-clock-history me-1"></i> Run History</a>
                     </li>
                     <li class="nav-item ms-lg-2">
-                        <a href="https://github.com/ansible/ansible" target="_blank" class="btn btn-outline-light btn-sm px-3 rounded-pill">
-                            <i class="bi bi-github me-1"></i> Ansible Core
+                        <a href="https://github.com/mkcheriyan997/IPSR-Projects/tree/main/autoplay-ansible-generator" target="_blank" class="btn btn-outline-light btn-sm px-3 rounded-pill">
+                            <i class="bi bi-github me-1"></i> Source
                         </a>
                     </li>
                 </ul>
@@ -45,9 +45,9 @@
     </nav>
 
     <!-- Main Content -->
-    <div class="container py-4">
+    <main class="container-fluid app-shell py-4">
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
     <!-- Footer -->
     <footer class="text-center py-4 border-top mt-5">

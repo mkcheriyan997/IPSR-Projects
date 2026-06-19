@@ -1,0 +1,19 @@
+    - name: Update Debian and Ubuntu packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+      when: ansible_os_family == 'Debian'
+
+    - name: Update Red Hat family packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        security: {{ 'true' if update_mode | default('all') == 'security' else 'false' }}
+      when: ansible_os_family == 'RedHat'
+
+{% if update_reboot | default('no') == 'yes' %}
+    - name: Reboot after operating system update
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+{% endif %}
+
