@@ -79,7 +79,7 @@ pipeline {
 
                         // 3. Start the stack if not fully running, and force-recreate the inactive environment
                         sh 'docker-compose up -d --no-recreate app_blue app_green nginx_lb'
-                        sh "docker-compose up -d --no-build --force-recreate app_${inactiveEnv}"
+                        sh "docker-compose up -d --force-recreate app_${inactiveEnv}"
 
                         // 4. Smoke test the newly deployed environment
                         echo "Running smoke tests on http://localhost:${inactivePort}/..."
