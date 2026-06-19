@@ -50,11 +50,11 @@ def save_playbook(name, target_hosts, become_privilege, tasks, playbook_yaml, in
     
     tasks_json = json.dumps(tasks)
     
-    # Check if a playbook with the exact same characteristics already exists
+    # Check if a playbook with the exact same characteristics already exists (Name can be different)
     cursor.execute('''
         SELECT id FROM playbooks 
-        WHERE name = ? AND target_hosts = ? AND become_privilege = ? AND tasks_json = ?
-    ''', (name, target_hosts, become_privilege, tasks_json))
+        WHERE target_hosts = ? AND become_privilege = ? AND tasks_json = ?
+    ''', (target_hosts, become_privilege, tasks_json))
     row = cursor.fetchone()
     if row:
         conn.close()
