@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  autoplay:
+    build: .
+    container_name: autoplay-app
+    ports:
+      - "5000:5000"
+    volumes:
+      - autoplay-db:/app/app/generated
+    restart: unless-stopped
+
+volumes:
+  autoplay-db:

@@ -1,0 +1,20 @@
+    - name: Ensure custom group "{{ user_group | default('devops') }}" exists
+      ansible.builtin.group:
+        name: "{{ user_group | default('devops') }}"
+        state: present
+
+    - name: Create system user "{{ user_name | default('webadmin') }}"
+      ansible.builtin.user:
+        name: "{{ user_name | default('webadmin') }}"
+        shell: "{{ user_shell | default('/bin/bash') }}"
+        groups: "{{ user_group | default('devops') }}"
+        append: yes
+        state: present
+
+    {% if user_ssh_key is defined and user_ssh_key %}
+    - name: Set authorized SSH key for user "{{ user_name | default('webadmin') }}"
+      ansible.builtin.authorized_key:
+        user: "{{ user_name | default('webadmin') }}"
+        state: present
+        key: "{{ user_ssh_key }}"
+    {% endif %}

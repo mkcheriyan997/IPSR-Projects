@@ -1,0 +1,22 @@
+# Python ignores
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Database
+app/autoplay.db
+autoplay.db
+app/generated/
+app/app/generated/
+
+# Secret SSH keys and local run temp files
+*.pem
+*.key
+*.ini
+!ansible-deploy/inventory.ini
+
+# IDE files
+.vscode/
+.idea/

@@ -1,0 +1,13 @@
+    - name: Open port "{{ firewall_port | default('80') }}" (Debian/Ubuntu UFW)
+      ansible.builtin.shell: "ufw allow {{ firewall_port | default('80') }}/{{ firewall_protocol | default('tcp') }}"
+      when: ansible_os_family == 'Debian'
+      failed_when: false
+
+    - name: Open port "{{ firewall_port | default('80') }}" (RedHat/RHEL Firewalld)
+      ansible.builtin.shell: |
+        if systemctl is-active --quiet firewalld; then
+          firewall-cmd --permanent --add-port={{ firewall_port | default('80') }}/{{ firewall_protocol | default('tcp') }}
+          firewall-cmd --reload
+        fi
+      when: ansible_os_family == 'RedHat'
+      failed_when: false

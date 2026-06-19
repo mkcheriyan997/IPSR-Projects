@@ -1,0 +1,19 @@
+    - name: Pull Docker image "{{ container_image | default('nginx:alpine') }}"
+      ansible.builtin.shell: "docker pull {{ container_image | default('nginx:alpine') }}"
+
+    - name: Stop and remove existing container "{{ container_name | default('demo-app') }}" (if exists)
+      ansible.builtin.shell: "docker rm -f {{ container_name | default('demo-app') }}"
+      failed_when: false
+
+    - name: Run Docker container "{{ container_name | default('demo-app') }}"
+      ansible.builtin.shell: >
+        docker run -d
+        --name {{ container_name | default('demo-app') }}
+        --restart unless-stopped
+        -p {{ container_ports | default('8080:80') }}
+        {% if container_env is defined and container_env %}
+        {% for env_var in container_env %}
+        -e "{{ env_var }}"
+        {% endfor %}
+        {% endif %}
+        {{ container_image | default('nginx:alpine') }}

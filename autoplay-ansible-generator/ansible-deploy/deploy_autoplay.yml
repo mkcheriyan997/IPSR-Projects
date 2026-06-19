@@ -1,0 +1,69 @@
+---
+- name: Deploy AutoPlay Web Application
+  hosts: webservers
+  become: yes
+  vars:
+    project_dir: "/opt/autoplay"
+    repo_url: "https://github.com/yourusername/autoplay-ansible-generator.git" # Replace with actual if version controlled
+
+  tasks:
+    - name: Update package cache (RHEL/CentOS)
+      ansible.builtin.dnf:
+        update_cache: yes
+      when: ansible_os_family == "RedHat"
+
+    - name: Update package cache (Debian/Ubuntu)
+      ansible.builtin.apt:
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install required packages (RHEL)
+      ansible.builtin.dnf:
+        name:
+          - git
+          - docker
+          - device-mapper-persistent-data
+          - lvm2
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Install required packages (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - git
+          - docker.io
+          - docker-compose
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Start and enable Docker service
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create project directory
+      ansible.builtin.file:
+        path: "{{ project_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy project files (using synchronize or copy)
+      ansible.builtin.copy:
+        src: ../
+        dest: "{{ project_dir }}"
+        mode: '0755'
+      ignore_errors: yes # If running inside CI/CD where we clone instead
+
+    - name: Build and launch AutoPlay container via Docker Compose (Debian/Ubuntu)
+      ansible.builtin.command:
+        cmd: docker-compose up -d --build
+        chdir: "{{ project_dir }}"
+      when: ansible_os_family == "Debian"
+
+    - name: Build and launch AutoPlay container via Docker (RHEL alternative)
+      ansible.builtin.command:
+        cmd: docker run -d --name autoplay-app -p 5000:5000 --restart unless-stopped autoplay:latest
+        chdir: "{{ project_dir }}"
+      ignore_errors: yes
+      when: ansible_os_family == "RedHat"

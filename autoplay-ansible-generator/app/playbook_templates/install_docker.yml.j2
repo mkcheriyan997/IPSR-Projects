@@ -1,0 +1,29 @@
+    - name: Install Docker pre-requisites (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - software-properties-common
+        state: present
+        update_cache: yes
+      when: ansible_os_family == 'Debian'
+
+    - name: Install Docker (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: docker.io
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Install Docker (RedHat/RHEL/CentOS/Fedora)
+      ansible.builtin.dnf:
+        name: docker
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+    - name: Start and enable Docker service
+      ansible.builtin.service:
+        name: docker
+        state: {{ docker_service_state | default('started') }}
+        enabled: {{ docker_service_enabled | default('yes') }}

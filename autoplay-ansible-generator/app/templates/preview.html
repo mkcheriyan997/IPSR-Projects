@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-md-12">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <a href="/dashboard" class="btn btn-outline-secondary btn-sm rounded-pill px-3 mb-2">
+                    <i class="bi bi-arrow-left"></i> Back to Builder
+                </a>
+                <h2 class="text-white fw-bold mb-0">Playbook #{{ playbook.id }}: {{ playbook.name }}</h2>
+                <p class="text-muted small mb-0">Compiled on {{ playbook.created_at }}</p>
+            </div>
+            <div>
+                <a href="/playbook/{{ playbook.id }}/download-playbook" class="btn btn-gradient px-4 fw-bold">
+                    <i class="bi bi-download me-1"></i> Download YAML
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Details Column -->
+            <div class="col-md-7 mb-4">
+                <div class="card bg-card mb-4">
+                    <div class="card-header border-0 bg-transparent py-3">
+                        <h5 class="m-0 text-white fw-bold d-flex align-items-center">
+                            <i class="bi bi-filetype-yml text-info me-2"></i> Playbook YAML Content
+                        </h5>
+                    </div>
+                    <div class="card-body pt-0">
+                        <div class="position-relative">
+                            <button class="btn btn-dark btn-sm position-absolute top-0 end-0 m-2 copy-btn" onclick="copyToClipboard('yaml-preview-box')">
+                                <i class="bi bi-clipboard me-1"></i> Copy
+                            </button>
+                            <pre class="m-0 p-3 rounded bg-dark-code" style="max-height: 500px; overflow-y: auto;"><code id="yaml-preview-box" class="language-yaml text-info JetBrains-Mono">{{ playbook.playbook_yaml }}</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card bg-card">
+                    <div class="card-header border-0 bg-transparent py-3">
+                        <h5 class="m-0 text-white fw-bold d-flex align-items-center">
+                            <i class="bi bi-file-earmark-text text-warning me-2"></i> Generated Inventory
+                        </h5>
+                    </div>
+                    <div class="card-body pt-0">
+                        <div class="position-relative">
+                            <button class="btn btn-dark btn-sm position-absolute top-0 end-0 m-2 copy-btn" onclick="copyToClipboard('ini-preview-box')">
+                                <i class="bi bi-clipboard me-1"></i> Copy
+                            </button>
+                            <pre class="m-0 p-3 rounded bg-dark-code"><code id="ini-preview-box" class="language-ini text-warning JetBrains-Mono">{{ playbook.inventory_ini }}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Execution Column -->
+            <div class="col-md-5 mb-4">
+                <div class="card bg-card mb-4">
+                    <div class="card-header border-0 bg-transparent py-3">
+                        <h5 class="m-0 text-white fw-bold d-flex align-items-center">
+                            <i class="bi bi-cpu-fill text-info me-2"></i> Metadata Details
+                        </h5>
+                    </div>
+                    <div class="card-body pt-0 text-light small">
+                        <table class="table table-dark table-borderless bg-transparent mb-0">
+                            <tbody>
+                                <tr>
+                                    <td class="text-muted ps-0">Hosts target:</td>
+                                    <td class="text-end fw-bold text-info">{{ playbook.target_hosts }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted ps-0">Become Privileged:</td>
+                                    <td class="text-end fw-bold">{{ playbook.become_privilege }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card bg-card border-info">
+                    <div class="card-body">
+                        <h5 class="fw-bold text-white mb-2 d-flex align-items-center">
+                            <i class="bi bi-rocket-takeoff text-info me-2"></i> Trigger Execution
+                        </h5>
+                        <p class="text-muted small mb-3">Execute this generated Ansible workflow against the target servers now.</p>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small text-muted text-uppercase fw-bold m-0 d-block mb-1">Target Host IP / Domain</label>
+                            <input type="text" class="form-control bg-input text-white border-secondary" id="run-ip-input" placeholder="e.g. 13.60.45.10">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small text-muted text-uppercase fw-bold m-0 d-block mb-1">SSH Private Key Content (Optional)</label>
+                            <textarea class="form-control bg-input text-white border-secondary JetBrains-Mono small" id="run-key-input" rows="4" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="run-dry-run">
+                                <label class="form-check-label text-light small fw-bold" for="run-dry-run">
+                                    Dry Run (--check)
+                                </label>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-info w-100 fw-bold py-2" id="trigger-preview-run-btn">
+                            <i class="bi bi-play-fill me-1"></i> Start Deployment Run
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const runBtn = document.getElementById('trigger-preview-run-btn');
+    if (runBtn) {
+        runBtn.addEventListener('click', async () => {
+            const ip = document.getElementById('run-ip-input').value || 'localhost';
+            const privateKey = document.getElementById('run-key-input').value;
+            const isDryRun = document.getElementById('run-dry-run').checked;
+
+            if (ip !== 'localhost' && !privateKey && !confirm('No SSH private key specified. Continue?')) {
+                return;
+            }
+
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Initializing...';
+
+            try {
+                const response = await fetch('/api/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        playbook_id: "{{ playbook.id }}",
+                        ip: ip,
+                        private_key: privateKey,
+                        is_dry_run: isDryRun
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    window.location.href = `/console/${result.run_id}`;
+                } else {
+                    alert(`Error: ${result.error}`);
+                    runBtn.disabled = false;
+                    runBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i> Start Deployment Run';
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Network error occurred.');
+                runBtn.disabled = false;
+                runBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i> Start Deployment Run';
+            }
+        });
+    }
+});
+
+function copyToClipboard(elementId) {
+    const text = document.getElementById(elementId).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const copyBtn = document.querySelector(`#${elementId}`).parentElement.querySelector('.copy-btn');
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="bi bi-check-lg text-success"></i> Copied!';
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
+}
+</script>
+{% endblock %}

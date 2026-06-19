@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-md-12">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <a href="/history" class="btn btn-outline-secondary btn-sm rounded-pill px-3 mb-2">
+                    <i class="bi bi-clock-history"></i> Run History
+                </a>
+                <h2 class="text-white fw-bold mb-0">Execution Console #{{ run.id }}</h2>
+                <p class="text-muted small mb-0">Target: <strong class="text-info">{{ run.ip }}</strong> &bull; Started: {{ run.executed_at }}</p>
+            </div>
+            <div id="status-container-header">
+                <span class="status-badge status-{{ run.status }}" id="run-status-badge">
+                    <i class="bi {% if run.status == 'running' %}bi-arrow-repeat spin{% elif run.status == 'success' %}bi-check-circle-fill{% else %}bi-x-circle-fill{% endif %} me-1"></i>
+                    {{ run.status | upper }}
+                </span>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Terminal Log Window -->
+            <div class="col-lg-8 col-md-12 mb-4">
+                <div class="card bg-card border-0 shadow-sm">
+                    <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center py-3">
+                        <span class="fw-bold text-white small text-uppercase tracking-wider">
+                            <i class="bi bi-terminal me-2 text-info"></i> Ansible Execution Logs
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="spinner-grow spinner-grow-sm text-info" id="live-indicator" style="{% if run.status != 'running' %}display:none;{% endif %}" role="status"></span>
+                            <span class="text-muted small" id="live-text">{% if run.status == 'running' %}Streaming Live...{% else %}Logs Static{% endif %}</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <pre class="console-term m-0" id="console-logs-window">{{ run.logs }}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metadata and Playbook Preview Info -->
+            <div class="col-lg-4 col-md-12">
+                <div class="card bg-card mb-4">
+                    <div class="card-header border-0 bg-transparent py-3">
+                        <h6 class="m-0 text-white fw-bold text-uppercase small text-muted">Execution Details</h6>
+                    </div>
+                    <div class="card-body pt-0 text-light small">
+                        <div class="mb-3">
+                            <label class="text-muted block small">Playbook Name</label>
+                            <div class="fw-bold text-white fs-6">
+                                <a href="/playbook/{{ run.playbook_id }}" class="text-info text-decoration-none">
+                                    {{ run.playbook_name }} <i class="bi bi-box-arrow-up-right small"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="text-muted block small">Target IP Address</label>
+                            <div class="fw-bold JetBrains-Mono text-white">{{ run.ip }}</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="text-muted block small">Start Time</label>
+                            <div class="text-white">{{ run.executed_at }}</div>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <a href="/playbook/{{ run.playbook_id }}" class="btn btn-outline-info btn-sm">
+                                <i class="bi bi-eye me-1"></i> View Playbook Code
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card bg-card" id="quick-troubleshoot-card" style="{% if run.status != 'failed' %}display:none;{% endif %}">
+                    <div class="card-body">
+                        <h6 class="text-danger fw-bold mb-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Execution Failed</h6>
+                        <p class="text-muted small mb-0">If connection issues occurred:
+                            <ul class="text-muted small ps-3 mb-0 mt-2">
+                                <li>Ensure target Security Group allows SSH access (Port 22).</li>
+                                <li>Check if the private key content is accurate and has access.</li>
+                                <li>Verify target instance has SSM agent running if deploying via SSM context.</li>
+                            </ul>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.spin {
+    animation: spin 1.5s linear infinite;
+    display: inline-block;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const runId = "{{ run.id }}";
+    const consoleLogsWindow = document.getElementById('console-logs-window');
+    const badge = document.getElementById('run-status-badge');
+    const liveIndicator = document.getElementById('live-indicator');
+    const liveText = document.getElementById('live-text');
+    const troubleshootCard = document.getElementById('quick-troubleshoot-card');
+
+    // Auto-scroll to bottom of logs
+    scrollToBottom();
+
+    let checkInterval = null;
+    let isRunning = "{% if run.status == 'running' %}true{% else %}false{% endif %}" === "true";
+
+    if (isRunning) {
+        checkInterval = setInterval(fetchLogs, 2000);
+    }
+
+    async function fetchLogs() {
+        try {
+            const response = await fetch(`/api/run/${runId}/logs`);
+            const result = await response.json();
+            
+            if (result.success) {
+                consoleLogsWindow.textContent = result.logs;
+                scrollToBottom();
+
+                if (result.status !== 'running') {
+                    clearInterval(checkInterval);
+                    updateStatusElements(result.status);
+                }
+            }
+        } catch (e) {
+            console.error("Error polling logs: ", e);
+        }
+    }
+
+    function scrollToBottom() {
+        consoleLogsWindow.scrollTop = consoleLogsWindow.scrollHeight;
+    }
+
+    function updateStatusElements(status) {
+        // Update badge
+        badge.className = `status-badge status-${status}`;
+        badge.innerHTML = '';
+        
+        const icon = document.createElement('i');
+        icon.className = 'me-1 bi ' + (status === 'success' ? 'bi-check-circle-fill' : 'bi-x-circle-fill');
+        badge.appendChild(icon);
+        badge.appendChild(document.createTextNode(' ' + status.toUpperCase()));
+
+        // Hide live elements
+        liveIndicator.style.display = 'none';
+        liveText.textContent = 'Logs Static';
+
+        // Show troubleshoot if failed
+        if (status === 'failed') {
+            troubleshootCard.style.display = 'block';
+        }
+    }
+});
+</script>
+{% endblock %}

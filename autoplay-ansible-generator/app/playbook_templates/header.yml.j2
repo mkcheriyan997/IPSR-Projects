@@ -1,0 +1,4 @@
+- name: {{ playbook_name | default('AutoPlay Dynamic Automation Playbook') }}
+  hosts: {{ target_hosts | default('all') }}
+  become: {{ become_privilege | default('yes') }}
+  tasks:

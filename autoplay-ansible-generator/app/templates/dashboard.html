@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- Builder column -->
+    <div class="col-lg-7 col-md-12 mb-4">
+        <div class="card shadow-sm border-0 mb-4 bg-card">
+            <div class="card-header border-0 bg-transparent py-3">
+                <h5 class="card-title fw-bold mb-0 text-white d-flex align-items-center">
+                    <i class="bi bi-sliders me-2 text-info"></i> Playbook Metadata & Inventory
+                </h5>
+            </div>
+            <div class="card-body pt-0 text-light">
+                <form id="playbook-meta-form">
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label small text-muted text-uppercase fw-bold">Playbook Name</label>
+                            <input type="text" class="form-control bg-input text-white border-secondary" id="playbook-name" value="AutoPlay Server Setup" required>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label small text-muted text-uppercase fw-bold">Target Hosts Group</label>
+                            <input type="text" class="form-control bg-input text-white border-secondary" id="target-hosts" value="all" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label small text-muted text-uppercase fw-bold">Become (Sudo/Root)</label>
+                            <select class="form-select bg-input text-white border-secondary" id="become-privilege">
+                                <option value="yes" selected>Yes (Root)</option>
+                                <option value="no">No (Standard User)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label small text-muted text-uppercase fw-bold">Server IP / Hostname</label>
+                            <input type="text" class="form-control bg-input text-white border-secondary" id="server-ip" placeholder="e.g. 13.60.45.10">
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label small text-muted text-uppercase fw-bold">SSH Username</label>
+                            <input type="text" class="form-control bg-input text-white border-secondary" id="ssh-user" value="ec2-user">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Task Selector card -->
+        <div class="card shadow-sm border-0 mb-4 bg-card">
+            <div class="card-header border-0 bg-transparent py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title fw-bold mb-0 text-white d-flex align-items-center">
+                    <i class="bi bi-stack me-2 text-info"></i> Configure Automation Tasks
+                </h5>
+                <span class="badge bg-dark-subtle border border-secondary text-light" id="task-counter">0 Tasks</span>
+            </div>
+            <div class="card-body pt-0 text-light">
+                <div class="p-3 rounded mb-3 bg-secondary-dark d-flex align-items-center gap-3">
+                    <div class="flex-grow-1">
+                        <select class="form-select bg-input text-white border-secondary" id="task-type-selector">
+                            <option value="" disabled selected>-- Select a Task Template to Add --</option>
+                            <option value="install_nginx">🌐 Install and Configure Nginx</option>
+                            <option value="install_docker">🐳 Install and Start Docker Engine</option>
+                            <option value="create_user">👤 Create Linux System User</option>
+                            <option value="deploy_container">📦 Deploy Docker Container</option>
+                            <option value="firewall">🛡️ Configure Firewall (Open Port)</option>
+                            <option value="custom_command">🐚 Execute Custom Bash/Shell Script</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-info px-4 fw-bold" id="add-task-btn">
+                        <i class="bi bi-plus-lg me-1"></i> Add
+                    </button>
+                </div>
+
+                <!-- Active tasks stack -->
+                <div id="tasks-container">
+                    <div class="text-center py-5 text-muted" id="no-tasks-placeholder">
+                        <i class="bi bi-box-seam fs-1 mb-3 d-block text-secondary"></i>
+                        <p class="mb-0">No tasks configured yet.</p>
+                        <small>Choose a task from the list above and click 'Add' to customize your workflow.</small>
+                    </div>
+                </div>
+
+                <div class="d-grid mt-4">
+                    <button class="btn btn-gradient btn-lg fw-bold" id="generate-playbook-btn">
+                        <i class="bi bi-magic me-1"></i> Compile & Generate Playbook
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Preview column -->
+    <div class="col-lg-5 col-md-12">
+        <div class="card shadow-sm border-0 mb-4 bg-card h-100 d-flex flex-column" id="preview-section" style="min-height: 600px;">
+            <div class="card-header border-0 bg-transparent py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title fw-bold mb-0 text-white d-flex align-items-center">
+                    <i class="bi bi-eye me-2 text-info"></i> Real-time Playbook Preview
+                </h5>
+                <div class="btn-group btn-group-sm" id="preview-toggle-group" style="display:none;">
+                    <button class="btn btn-outline-info active" id="btn-show-yaml">Playbook.yml</button>
+                    <button class="btn btn-outline-info" id="btn-show-ini">Inventory.ini</button>
+                </div>
+            </div>
+            <div class="card-body pt-0 d-flex flex-column flex-grow-1">
+                <!-- Compilation placeholder -->
+                <div class="text-center my-auto text-muted py-5" id="preview-placeholder">
+                    <i class="bi bi-code-square fs-1 mb-3 d-block text-secondary"></i>
+                    <p class="mb-1">Playbook has not been generated.</p>
+                    <small>Complete the configuration on the left and click 'Compile & Generate' to preview the code and run security analysis.</small>
+                </div>
+
+                <!-- Result views -->
+                <div id="preview-result-container" style="display:none;" class="flex-grow-1 d-flex flex-column">
+                    <!-- YAML Code -->
+                    <div id="yaml-code-view" class="code-view flex-grow-1 position-relative">
+                        <button class="btn btn-dark btn-sm position-absolute top-0 end-0 m-2 copy-btn" onclick="copyToClipboard('yaml-code-box')">
+                            <i class="bi bi-clipboard me-1"></i> Copy
+                        </button>
+                        <pre class="m-0 h-100 p-3 rounded bg-dark-code"><code id="yaml-code-box" class="language-yaml text-info JetBrains-Mono"></code></pre>
+                    </div>
+
+                    <!-- INI Code -->
+                    <div id="ini-code-view" class="code-view flex-grow-1 position-relative" style="display:none;">
+                        <button class="btn btn-dark btn-sm position-absolute top-0 end-0 m-2 copy-btn" onclick="copyToClipboard('ini-code-box')">
+                            <i class="bi bi-clipboard me-1"></i> Copy
+                        </button>
+                        <pre class="m-0 h-100 p-3 rounded bg-dark-code"><code id="ini-code-box" class="language-ini text-warning JetBrains-Mono"></code></pre>
+                    </div>
+
+                    <!-- Download controls -->
+                    <div class="row g-2 mt-3 mb-3">
+                        <div class="col-6">
+                            <a href="#" class="btn btn-outline-light w-100 btn-sm text-truncate" id="dl-playbook-link">
+                                <i class="bi bi-download me-1"></i> Download Playbook
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="#" class="btn btn-outline-light w-100 btn-sm text-truncate" id="dl-inventory-link">
+                                <i class="bi bi-download me-1"></i> Download Inventory
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Risk Advisor Section -->
+                    <div class="card bg-dark-subtle border-secondary mb-3">
+                        <div class="card-header border-secondary bg-transparent py-2">
+                            <h6 class="m-0 fw-bold text-white d-flex align-items-center">
+                                <i class="bi bi-shield-exclamation text-warning me-2"></i> Security Risk Assessment
+                            </h6>
+                        </div>
+                        <div class="card-body p-2" id="risks-container-list">
+                            <!-- Dynamically loaded risk reports -->
+                        </div>
+                    </div>
+
+                    <!-- Execution triggers -->
+                    <div class="card bg-dark border-info mb-0">
+                        <div class="card-body p-3">
+                            <h6 class="fw-bold text-white mb-2 d-flex align-items-center">
+                                <i class="bi bi-rocket-takeoff-fill text-info me-2"></i> Execute Target Deployment
+                            </h6>
+                            <p class="text-muted small mb-3">Deploy the compiled playbook directly from this web panel using the interactive runner.</p>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small text-muted text-uppercase fw-bold m-0 d-block mb-1">SSH Private Key Content (Optional)</label>
+                                <textarea class="form-control bg-input text-white border-secondary JetBrains-Mono small" id="private-key-input" rows="3" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----"></textarea>
+                            </div>
+
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="dry-run-switch">
+                                    <label class="form-check-label text-light small fw-bold" for="dry-run-switch">
+                                        Ansible Dry Run (<code class="text-info">--check</code>)
+                                    </label>
+                                </div>
+                                <span class="badge bg-secondary-dark text-muted border border-secondary small text-uppercase">Check-Mode</span>
+                            </div>
+
+                            <button class="btn btn-info w-100 fw-bold" id="run-playbook-btn">
+                                <i class="bi bi-play-fill"></i> Trigger Remote Deployment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Task Form Templates (hidden in DOM, cloned dynamically by JS) -->
+<div id="task-forms-definitions" style="display:none;">
+    <!-- Nginx template -->
+    <div class="task-form-def" data-type="install_nginx">
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Service State</label>
+                <select class="form-select bg-input text-white border-secondary small" name="nginx_service_state">
+                    <option value="started" selected>Started</option>
+                    <option value="stopped">Stopped</option>
+                </select>
+            </div>
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Enable on Boot</label>
+                <select class="form-select bg-input text-white border-secondary small" name="nginx_service_enabled">
+                    <option value="yes" selected>Yes</option>
+                    <option value="no">No</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Docker template -->
+    <div class="task-form-def" data-type="install_docker">
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Service State</label>
+                <select class="form-select bg-input text-white border-secondary small" name="docker_service_state">
+                    <option value="started" selected>Started</option>
+                    <option value="stopped">Stopped</option>
+                </select>
+            </div>
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Enable on Boot</label>
+                <select class="form-select bg-input text-white border-secondary small" name="docker_service_enabled">
+                    <option value="yes" selected>Yes</option>
+                    <option value="no">No</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- User template -->
+    <div class="task-form-def" data-type="create_user">
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Username</label>
+                <input type="text" class="form-control bg-input text-white border-secondary small" name="user_name" value="webadmin" required>
+            </div>
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Primary Group</label>
+                <input type="text" class="form-control bg-input text-white border-secondary small" name="user_group" value="devops">
+            </div>
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Shell</label>
+                <input type="text" class="form-control bg-input text-white border-secondary small" name="user_shell" value="/bin/bash">
+            </div>
+            <div class="col-12 mb-2">
+                <label class="form-label small text-muted">Authorized SSH Public Key (Optional)</label>
+                <input type="text" class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="user_ssh_key" placeholder="ssh-rsa AAAAB3Nza...">
+            </div>
+        </div>
+    </div>
+
+    <!-- Deploy Container template -->
+    <div class="task-form-def" data-type="deploy_container">
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Container Name</label>
+                <input type="text" class="form-control bg-input text-white border-secondary small" name="container_name" value="demo-app" required>
+            </div>
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Docker Image</label>
+                <input type="text" class="form-control bg-input text-white border-secondary small" name="container_image" value="nginx:alpine" required>
+            </div>
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Port Mapping (Host:Container)</label>
+                <input type="text" class="form-control bg-input text-white border-secondary small" name="container_ports" value="8080:80" required>
+            </div>
+            <div class="col-12 mb-2">
+                <label class="form-label small text-muted">Environment Variables (one per line, key=val)</label>
+                <textarea class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="container_env" rows="2" placeholder="DB_HOST=127.0.0.1&#10;PORT=80"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firewall template -->
+    <div class="task-form-def" data-type="firewall">
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Port Number</label>
+                <input type="number" class="form-control bg-input text-white border-secondary small" name="firewall_port" value="80" required>
+            </div>
+            <div class="col-md-6 mb-2">
+                <label class="form-label small text-muted">Protocol</label>
+                <select class="form-select bg-input text-white border-secondary small" name="firewall_protocol">
+                    <option value="tcp" selected>TCP</option>
+                    <option value="udp">UDP</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Command template -->
+    <div class="task-form-def" data-type="custom_command">
+        <div class="row">
+            <div class="col-12 mb-2">
+                <label class="form-label small text-muted">Task Name / Description</label>
+                <input type="text" class="form-control bg-input text-white border-secondary small" name="custom_command_name" value="Run custom setup actions" required>
+            </div>
+            <div class="col-12 mb-2">
+                <label class="form-label small text-muted">Bash Script / Command Body</label>
+                <textarea class="form-control bg-input text-white border-secondary small JetBrains-Mono" name="custom_command_body" rows="3" placeholder="echo 'Performing server configuration...'" required></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
