@@ -88,14 +88,21 @@ def create_run(playbook_id, ip):
     conn.close()
     return run_id
 
-def update_run_status(run_id, status, logs):
+def update_run_status(run_id, status, logs=None):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('''
-        UPDATE runs
-        SET status = ?, logs = ?
-        WHERE id = ?
-    ''', (status, logs, run_id))
+    if logs is not None:
+        cursor.execute('''
+            UPDATE runs
+            SET status = ?, logs = ?
+            WHERE id = ?
+        ''', (status, logs, run_id))
+    else:
+        cursor.execute('''
+            UPDATE runs
+            SET status = ?
+            WHERE id = ?
+        ''', (status, run_id))
     conn.commit()
     conn.close()
 
