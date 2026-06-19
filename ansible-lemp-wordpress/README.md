@@ -3,9 +3,9 @@
 This project automates the deployment of a professional-grade web hosting environment on Amazon Linux 2023 using Ansible.
 
 ## Project Structure
-- `ansible-setup/`: Contains the Ansible playbooks, inventory, and roles used to automate the stack installation.
-- `documentation/`: Detailed implementation reports and step-by-step guides.
-- `scripts/`: Utility scripts, including `open_ports.py` for AWS Security Group management.
+- `ansible-setup/`: Idempotent playbook, remote inventory and safe credential example.
+- `documentation/`: Verified Task #49310 completion and instance-migration reports.
+- `scripts/`: Supporting AWS security-group utility.
 
 ## Key Features
 - **LEMP Stack:** Nginx, MariaDB 10.11, and PHP 8.2.
@@ -15,10 +15,23 @@ This project automates the deployment of a professional-grade web hosting enviro
 - **WordPress:** Automated installation and configuration via WP-CLI.
 
 ## Automation
-The entire stack can be deployed by running the Ansible playbook:
+Create the private variables file before the first run:
+
 ```bash
-ansible-playbook -i ansible-setup/inventory.ini ansible-setup/setup_wordpress.yml
+cd ansible-setup
+cp credentials.yml.example credentials.yml
+chmod 600 credentials.yml
+# Replace every placeholder, then preferably run: ansible-vault encrypt credentials.yml
 ```
 
+Deploy from the controller instance:
+
+```bash
+ansible-playbook setup_wordpress.yml
+```
+
+The repository intentionally excludes `credentials.yml` and the task credential
+sheet. No operational passwords or private keys should be committed.
+
 ---
-*Created on: Wednesday, June 17, 2026*
+*Updated on: June 19, 2026*

@@ -1,21 +1,35 @@
 ---
-- name: Setup LEMP stack with WordPress, SFTP and phpMyAdmin
+- name: Deploy WordPress LEMP stack with SFTP, phpMyAdmin, and TLS
   hosts: webserver
-  become: yes
+  become: true
+  vars_files:
+    - credentials.yml
   vars:
     username: wpadmin
     website_name: MyWebsiteProject
+    web_root: "/home/{{ username }}/{{ website_name }}/public"
     domain: mlolad.xyz
     db_name: wordpress_db
     db_user: wp_user
-    db_password: wp_password123
     wp_admin_user: wpadmin
-    wp_admin_password: AdminPass123!
     wp_admin_email: admin@mlolad.xyz
+    phpmyadmin_version: 5.2.3
+    site_scheme: "{{ 'https' if enable_tls | bool else 'http' }}"
+
+  handlers:
+    - name: Restart sshd
+      ansible.builtin.systemd:
+        name: sshd
+        state: restarted
+
+    - name: Reload nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded
 
   tasks:
-    - name: Install LEMP packages
-      dnf:
+    - name: Install LEMP and certificate packages
+      ansible.builtin.dnf:
         name:
           - nginx
           - mariadb1011-server
@@ -29,50 +43,60 @@
           - php8.2-zip
           - certbot
           - python3-certbot-nginx
+          - python3-pip
+          - tar
         state: present
-        allowerasing: yes
+        allowerasing: true
 
-    - name: Ensure services are started and enabled
-      systemd:
+    - name: Install Python MySQL bindings for Ansible
+      ansible.builtin.pip:
+        name: PyMySQL
+        executable: pip3
+        state: present
+
+    - name: Start and enable application services
+      ansible.builtin.systemd:
         name: "{{ item }}"
         state: started
-        enabled: yes
+        enabled: true
       loop:
         - nginx
         - mariadb
         - php-fpm
 
-    - name: Create sftp_users group
-      group:
+    - name: Create SFTP group
+      ansible.builtin.group:
         name: sftp_users
         state: present
 
-    - name: Create wpadmin user
-      user:
+    - name: Create SFTP user
+      ansible.builtin.user:
         name: "{{ username }}"
         groups: sftp_users
         shell: /sbin/nologin
-        password: "{{ 'wpadmin123' | password_hash('sha512') }}"
+        password: "{{ sftp_password | password_hash('sha512') }}"
+        update_password: on_create
         home: "/home/{{ username }}"
+      no_log: true
 
-    - name: Set permissions on home directory for SFTP chroot
-      file:
+    - name: Secure SFTP chroot root
+      ansible.builtin.file:
         path: "/home/{{ username }}"
+        state: directory
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
 
-    - name: Create website directories
-      file:
-        path: "/home/{{ username }}/{{ website_name }}/public"
+    - name: Create writable website root
+      ansible.builtin.file:
+        path: "{{ web_root }}"
         state: directory
         owner: "{{ username }}"
         group: "{{ username }}"
-        mode: '0755'
-        recurse: yes
+        mode: "0755"
 
-    - name: Configure SSH for SFTP chroot
-      blockinfile:
+    - name: Configure chrooted SFTP access
+      ansible.builtin.blockinfile:
         path: /etc/ssh/sshd_config
         marker: "# {mark} ANSIBLE MANAGED SFTP BLOCK"
         block: |
@@ -82,82 +106,250 @@
               AllowTcpForwarding no
               X11Forwarding no
               PasswordAuthentication yes
-      notify: restart sshd
+              AuthenticationMethods password
+        validate: /usr/sbin/sshd -t -f %s
+      notify: Restart sshd
 
-    - name: Create MariaDB database
-      mysql_db:
+    - name: Create WordPress database
+      community.mysql.mysql_db:
         name: "{{ db_name }}"
         state: present
         login_unix_socket: /var/lib/mysql/mysql.sock
 
-    - name: Create MariaDB user
-      mysql_user:
+    - name: Create WordPress database user
+      community.mysql.mysql_user:
         name: "{{ db_user }}"
         password: "{{ db_password }}"
         priv: "{{ db_name }}.*:ALL"
         state: present
         login_unix_socket: /var/lib/mysql/mysql.sock
+      no_log: true
 
     - name: Download WordPress
-      get_url:
+      ansible.builtin.get_url:
         url: https://wordpress.org/latest.tar.gz
         dest: /tmp/wordpress.tar.gz
+        mode: "0644"
 
     - name: Extract WordPress
-      unarchive:
+      ansible.builtin.unarchive:
         src: /tmp/wordpress.tar.gz
         dest: /tmp
-        remote_src: yes
+        remote_src: true
+        creates: /tmp/wordpress/wp-settings.php
 
-    - name: Move WordPress files to public directory
-      shell: "cp -rn /tmp/wordpress/* /home/{{ username }}/{{ website_name }}/public/"
-      args:
-        creates: "/home/{{ username }}/{{ website_name }}/public/wp-config-sample.php"
+    - name: Check whether WordPress files are installed
+      ansible.builtin.stat:
+        path: "{{ web_root }}/wp-settings.php"
+      register: wordpress_files
 
-    - name: Set ownership on WordPress files
-      file:
-        path: "/home/{{ username }}/{{ website_name }}/public"
+    - name: Install WordPress files
+      ansible.builtin.copy:
+        src: /tmp/wordpress/
+        dest: "{{ web_root }}/"
+        remote_src: true
         owner: "{{ username }}"
         group: "{{ username }}"
-        recurse: yes
+        mode: preserve
+        force: true
+      when: not wordpress_files.stat.exists
 
     - name: Install WP-CLI
-      get_url:
+      ansible.builtin.get_url:
         url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
         dest: /usr/local/bin/wp
-        mode: '0755'
+        mode: "0755"
 
-    - name: Configure WordPress
+    - name: Configure WordPress database connection
       become_user: "{{ username }}"
-      shell: |
-        wp config create --dbname={{ db_name }} --dbuser={{ db_user }} --dbpass={{ db_password }} --path=/home/{{ username }}/{{ website_name }}/public --allow-root --skip-check
+      ansible.builtin.command:
+        argv:
+          - wp
+          - config
+          - create
+          - "--dbname={{ db_name }}"
+          - "--dbuser={{ db_user }}"
+          - "--dbpass={{ db_password }}"
+          - "--path={{ web_root }}"
+          - --skip-check
       args:
-        creates: "/home/{{ username }}/{{ website_name }}/public/wp-config.php"
+        creates: "{{ web_root }}/wp-config.php"
+      no_log: true
 
-    - name: Install WordPress Core
+    - name: Install WordPress core
       become_user: "{{ username }}"
-      shell: |
-        wp core install --url=https://{{ domain }} --title="My Personal Blog" --admin_user={{ wp_admin_user }} --admin_password="{{ wp_admin_password }}" --admin_email={{ wp_admin_email }} --path=/home/{{ username }}/{{ website_name }}/public --allow-root
+      ansible.builtin.command:
+        argv:
+          - wp
+          - core
+          - install
+          - "--url={{ site_scheme }}://{{ domain }}"
+          - --title=My Personal Blog
+          - "--admin_user={{ wp_admin_user }}"
+          - "--admin_password={{ wp_admin_password }}"
+          - "--admin_email={{ wp_admin_email }}"
+          - "--path={{ web_root }}"
       register: wp_install
-      failed_when: 
-        - "'Success' not in wp_install.stdout"
-        - "'already installed' not in wp_install.stdout"
       changed_when: "'Success' in wp_install.stdout"
+      failed_when:
+        - wp_install.rc != 0
+        - "'already installed' not in wp_install.stdout"
+      no_log: true
 
-    - name: Create blog post
+    - name: Set canonical WordPress HTTPS URLs
       become_user: "{{ username }}"
-      shell: |
-        wp post create --post_type=post --post_title='About Me' --post_content='Hello! I am the administrator of this blog. I love technology and setting up servers.' --post_status=publish --path=/home/{{ username }}/{{ website_name }}/public --allow-root
-      args:
-        creates: "/home/{{ username }}/{{ website_name }}/public/ansible_post_created.txt"
-    
-    - name: Mark post as created
-      file:
-        path: "/home/{{ username }}/{{ website_name }}/public/ansible_post_created.txt"
-        state: touch
+      ansible.builtin.shell: |
+        current="$(wp option get {{ item }} --path={{ web_root }})"
+        if [ "$current" != "{{ site_scheme }}://{{ domain }}" ]; then
+          wp option update {{ item }} {{ site_scheme }}://{{ domain }} --path={{ web_root }} >/dev/null
+          echo changed
+        fi
+      loop:
+        - home
+        - siteurl
+      register: wp_url_update
+      changed_when: "'changed' in wp_url_update.stdout"
 
-  handlers:
-    - name: restart sshd
-      systemd:
-        name: sshd
-        state: restarted
+    - name: Ensure exactly one published About Me post
+      become_user: "{{ username }}"
+      ansible.builtin.shell: |
+        wp eval '
+          $posts = get_posts(array("post_type" => "post", "post_status" => "publish", "title" => "About Me", "numberposts" => -1, "orderby" => "ID", "order" => "ASC"));
+          if (count($posts) === 0) {
+              wp_insert_post(array("post_title" => "About Me", "post_content" => "Hello! I am the administrator of this blog. I love technology and setting up servers.", "post_status" => "publish", "post_type" => "post"));
+              echo "changed";
+          } elseif (count($posts) > 1) {
+              foreach (array_slice($posts, 1) as $post) { wp_delete_post($post->ID, true); }
+              echo "changed";
+          }
+        ' --path={{ web_root }}
+      args:
+        executable: /bin/bash
+      register: about_post
+      changed_when: "'changed' in about_post.stdout"
+
+    - name: Create phpMyAdmin directory
+      ansible.builtin.file:
+        path: "{{ web_root }}/phpmyadmin"
+        state: directory
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: "0755"
+
+    - name: Download phpMyAdmin
+      ansible.builtin.get_url:
+        url: "https://files.phpmyadmin.net/phpMyAdmin/{{ phpmyadmin_version }}/phpMyAdmin-{{ phpmyadmin_version }}-all-languages.tar.gz"
+        dest: "/tmp/phpmyadmin-{{ phpmyadmin_version }}.tar.gz"
+        mode: "0644"
+
+    - name: Install phpMyAdmin
+      ansible.builtin.unarchive:
+        src: "/tmp/phpmyadmin-{{ phpmyadmin_version }}.tar.gz"
+        dest: "{{ web_root }}/phpmyadmin"
+        remote_src: true
+        extra_opts:
+          - --strip-components=1
+        creates: "{{ web_root }}/phpmyadmin/index.php"
+      become_user: "{{ username }}"
+
+    - name: Configure phpMyAdmin cookie authentication
+      ansible.builtin.copy:
+        dest: "{{ web_root }}/phpmyadmin/config.inc.php"
+        owner: "{{ username }}"
+        group: apache
+        mode: "0640"
+        content: |
+          <?php
+          declare(strict_types=1);
+          $cfg['blowfish_secret'] = '{{ phpmyadmin_blowfish_secret }}';
+          $i = 0;
+          $i++;
+          $cfg['Servers'][$i]['auth_type'] = 'cookie';
+          $cfg['Servers'][$i]['host'] = 'localhost';
+          $cfg['Servers'][$i]['compress'] = false;
+          $cfg['Servers'][$i]['AllowNoPassword'] = false;
+          $cfg['UploadDir'] = '';
+          $cfg['SaveDir'] = '';
+      no_log: true
+
+    - name: Check for an existing certificate
+      ansible.builtin.stat:
+        path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+      register: tls_certificate
+
+    - name: Configure Nginx HTTP site for bootstrap
+      ansible.builtin.copy:
+        dest: /etc/nginx/conf.d/wordpress.conf
+        mode: "0644"
+        content: |
+          server {
+              listen 80;
+              server_name {{ domain }};
+              add_header X-Deployment-Instance "task-49310-new" always;
+              root {{ web_root }};
+              index index.php index.html;
+              location / { try_files $uri $uri/ /index.php?$args; }
+              location ~ \.php$ {
+                  include fastcgi_params;
+                  fastcgi_pass unix:/run/php-fpm/www.sock;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+              }
+          }
+      when: not enable_tls | bool or not tls_certificate.stat.exists
+      notify: Reload nginx
+
+    - name: Apply bootstrap Nginx configuration
+      ansible.builtin.meta: flush_handlers
+
+    - name: Obtain Let's Encrypt certificate
+      ansible.builtin.command: >-
+        certbot certonly --nginx --non-interactive --agree-tos
+        --email {{ wp_admin_email }} -d {{ domain }}
+      args:
+        creates: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+      when: enable_tls | bool
+
+    - name: Install final HTTPS Nginx configuration
+      ansible.builtin.copy:
+        dest: /etc/nginx/conf.d/wordpress.conf
+        mode: "0644"
+        content: |
+          server {
+              listen 80;
+              server_name {{ domain }};
+              add_header X-Deployment-Instance "task-49310-new" always;
+              return 301 https://$host$request_uri;
+          }
+          server {
+              listen 443 ssl;
+              server_name {{ domain }};
+              add_header X-Deployment-Instance "task-49310-new" always;
+              root {{ web_root }};
+              ssl_certificate /etc/letsencrypt/live/{{ domain }}/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
+              include /etc/letsencrypt/options-ssl-nginx.conf;
+              ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+              index index.php index.html;
+              location / { try_files $uri $uri/ /index.php?$args; }
+              location ~ \.php$ {
+                  include fastcgi_params;
+                  fastcgi_intercept_errors on;
+                  fastcgi_pass unix:/run/php-fpm/www.sock;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+              }
+              location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+                  expires max;
+                  log_not_found off;
+              }
+          }
+      when: enable_tls | bool
+      notify: Reload nginx
+
+    - name: Enable automatic certificate renewal
+      ansible.builtin.systemd:
+        name: certbot-renew.timer
+        state: started
+        enabled: true
+
+    - name: Apply final service changes
+      ansible.builtin.meta: flush_handlers
