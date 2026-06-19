@@ -51,9 +51,67 @@ pipeline {
             steps {
                 dir('autoplay-ansible-generator') {
                     script {
-                        echo 'Deploying AutoPlay Container...'
-                        sh "docker rm -f ${DOCKER_IMAGE} || true"
-                        sh "docker run -d --name ${DOCKER_IMAGE} -p ${APP_PORT}:5000 --restart unless-stopped ${DOCKER_IMAGE}:latest"
+                        echo 'Starting Blue-Green Deployment...'
+                        
+                        // 1. Remove old standalone container if it exists (conflicts with port 5000)
+                        sh 'docker rm -f autoplay-app || true'
+
+                        // 2. Identify the active and inactive environments
+                        def activeEnv = "blue"
+                        def inactiveEnv = "green"
+                        def inactivePort = "8002"
+                        
+                        if (fileExists('nginx/nginx.conf')) {
+                            def configContent = readFile('nginx/nginx.conf')
+                            if (configContent.contains('server app_green:5000;')) {
+                                activeEnv = "green"
+                                inactiveEnv = "blue"
+                                inactivePort = "8001"
+                            }
+                        }
+                        
+                        echo "Currently active environment: ${activeEnv}"
+                        echo "Deploying to inactive environment: ${inactiveEnv} on port ${inactivePort}"
+
+                        // 3. Start the stack if not fully running, and force-recreate the inactive environment
+                        sh 'docker-compose up -d --no-recreate app_blue app_green nginx_lb'
+                        sh "docker-compose up -d --no-build --force-recreate app_${inactiveEnv}"
+
+                        // 4. Smoke test the newly deployed environment
+                        echo "Running smoke tests on http://localhost:${inactivePort}/..."
+                        def maxAttempts = 12
+                        def attempt = 0
+                        def success = false
+                        
+                        while (attempt < maxAttempts) {
+                            def responseCode = sh(
+                                script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:${inactivePort}/ || true",
+                                returnStdout: true
+                            ).trim()
+                            
+                            if (responseCode == "200") {
+                                echo "Smoke test passed on port ${inactivePort}!"
+                                success = true
+                                break
+                            }
+                            
+                            echo "Attempt ${attempt + 1}/${maxAttempts}: App not ready (HTTP status: ${responseCode}). Retrying in 5 seconds..."
+                            sleep 5
+                            attempt++
+                        }
+                        
+                        if (!success) {
+                            error("Smoke test failed for environment ${inactiveEnv} on port ${inactivePort}!")
+                        }
+
+                        // 5. Swap traffic and reload Nginx
+                        echo "Updating Nginx configuration to point to ${inactiveEnv}..."
+                        sh "sed -i 's/server app_\\(blue\\|green\\):5000;/server app_${inactiveEnv}:5000;/g' nginx/nginx.conf"
+                        
+                        echo "Reloading Nginx load balancer..."
+                        sh 'docker exec nginx_lb nginx -s reload'
+                        
+                        echo "Deployment swapped successfully to ${inactiveEnv}!"
                     }
                 }
             }
@@ -68,7 +126,7 @@ pipeline {
             }
         }
         success {
-            echo "AutoPlay deployed successfully! Reach it at: http://13.63.155.95:${APP_PORT}"
+            echo "AutoPlay deployed successfully! Reach it at: http://13.63.155.95:5000"
         }
         failure {
             echo 'Deployment Pipeline Failed. Please check the logs.'
