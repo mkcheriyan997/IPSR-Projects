@@ -9,48 +9,52 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                // Checkout code from Git repository
+                // Checkout code from SCM
                 checkout scm
             }
         }
 
         stage('Static Analysis') {
             steps {
-                script {
-                    echo 'Performing Python Syntax Check...'
-                    // Compiles all python source files to check for syntax errors
-                    sh 'python3 -m py_compile app/*.py tests/*.py'
+                dir('autoplay-ansible-generator') {
+                    script {
+                        echo 'Performing Python Syntax Check...'
+                        sh 'python3 -m py_compile app/*.py tests/*.py'
+                    }
                 }
             }
         }
 
         stage('Run Unit Tests') {
             steps {
-                script {
-                    echo 'Running AutoPlay Unit Tests...'
-                    // Execute unit tests
-                    sh 'python3 -m unittest discover -s tests'
+                dir('autoplay-ansible-generator') {
+                    script {
+                        echo 'Running AutoPlay Unit Tests...'
+                        sh 'python3 -m unittest discover -s tests'
+                    }
                 }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    echo 'Building Docker Image...'
-                    sh "docker build -t ${DOCKER_IMAGE}:latest ."
+                dir('autoplay-ansible-generator') {
+                    script {
+                        echo 'Building Docker Image...'
+                        sh "docker build -t ${DOCKER_IMAGE}:latest ."
+                    }
                 }
             }
         }
 
         stage('Deploy Application') {
             steps {
-                script {
-                    echo 'Deploying AutoPlay Container...'
-                    // Remove existing container if it exists
-                    sh "docker rm -f ${DOCKER_IMAGE} || true"
-                    // Start new container
-                    sh "docker run -d --name ${DOCKER_IMAGE} -p ${APP_PORT}:5000 --restart unless-stopped ${DOCKER_IMAGE}:latest"
+                dir('autoplay-ansible-generator') {
+                    script {
+                        echo 'Deploying AutoPlay Container...'
+                        sh "docker rm -f ${DOCKER_IMAGE} || true"
+                        sh "docker run -d --name ${DOCKER_IMAGE} -p ${APP_PORT}:5000 --restart unless-stopped ${DOCKER_IMAGE}:latest"
+                    }
                 }
             }
         }
@@ -58,9 +62,10 @@ pipeline {
 
     post {
         always {
-            echo 'AutoPlay Pipeline Completed.'
-            // Prune dangling images to conserve storage
-            sh "docker image prune -f"
+            dir('autoplay-ansible-generator') {
+                echo 'AutoPlay Pipeline Completed.'
+                sh "docker image prune -f"
+            }
         }
         success {
             echo "AutoPlay deployed successfully! Reach it at: http://13.63.155.95:${APP_PORT}"
