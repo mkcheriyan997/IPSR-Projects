@@ -44,7 +44,7 @@ def generate_playbook(header_vars, tasks_list):
     except Exception as e:
         return f"# Error generating playbook: {str(e)}"
 
-def generate_inventory(ip, user, key_path=None, password=None):
+def generate_inventory(ip, user, key_path=None, password=None, target_hosts='target_servers'):
     """
     Generates an Ansible inventory INI content.
     """
@@ -60,7 +60,8 @@ def generate_inventory(ip, user, key_path=None, password=None):
     # Standard connection option to avoid host key checking prompts
     line += " ansible_ssh_extra_args='-o StrictHostKeyChecking=no'"
     
-    content = f"[target_servers]\n{line}\n"
+    group_name = 'target_servers' if target_hosts == 'all' else target_hosts
+    content = f"[{group_name}]\n{line}\n"
     return content
 
 def run_risk_assessment(playbook_yaml, tasks_list):

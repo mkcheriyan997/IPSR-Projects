@@ -54,7 +54,7 @@ def api_generate():
         playbook_yaml = generate_playbook(header_vars, tasks)
         
         # 2. Generate Inventory INI
-        inventory_ini = generate_inventory(ip, user, key_path, password)
+        inventory_ini = generate_inventory(ip, user, key_path, password, target_hosts)
         
         # 3. Static Security Risk Assessment
         risks = run_risk_assessment(playbook_yaml, tasks)
