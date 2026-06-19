@@ -7,6 +7,7 @@ from app.database import (
 )
 from app.generator import generate_playbook, generate_inventory, run_risk_assessment
 from app.executor import execute_ansible_async
+from app.gitops import push_to_gitops
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -67,6 +68,9 @@ def api_generate():
             playbook_yaml=playbook_yaml,
             inventory_ini=inventory_ini
         )
+        
+        # 5. Push to GitOps repository automatically
+        push_to_gitops(playbook_yaml, inventory_ini)
         
         return jsonify({
             'success': True,

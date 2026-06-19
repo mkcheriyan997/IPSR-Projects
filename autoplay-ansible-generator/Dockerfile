@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sshpass \
     openssh-client \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install ansible-core for running playbooks

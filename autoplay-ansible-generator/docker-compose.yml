@@ -8,6 +8,8 @@ services:
       - "8001:5000"
     volumes:
       - autoplay-db:/app/app/generated
+    environment:
+      - GITHUB_PAT=${GITHUB_PAT}
     restart: unless-stopped
 
   app_green:
@@ -17,6 +19,8 @@ services:
       - "8002:5000"
     volumes:
       - autoplay-db:/app/app/generated
+    environment:
+      - GITHUB_PAT=${GITHUB_PAT}
     restart: unless-stopped
 
   nginx_lb:

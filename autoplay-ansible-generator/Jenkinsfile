@@ -4,6 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'autoplay-app'
         APP_PORT = '5000'
+        GITHUB_PAT = sh(script: 'cat /var/lib/jenkins/github_pat.txt 2>/dev/null || echo ""', returnStdout: true).trim()
     }
 
     stages {
