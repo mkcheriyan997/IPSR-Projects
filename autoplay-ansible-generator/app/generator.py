@@ -18,6 +18,8 @@ def generate_playbook(header_vars, tasks_list):
         # 1. Render the header
         header_template = env.get_template('header.yml.j2')
         playbook_content = header_template.render(header_vars)
+        if not playbook_content.endswith('\n'):
+            playbook_content += '\n'
         
         # 2. Append tasks
         for task in tasks_list:
