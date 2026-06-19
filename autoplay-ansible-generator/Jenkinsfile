@@ -56,18 +56,21 @@ pipeline {
                         // 1. Remove old standalone container if it exists (conflicts with port 5000)
                         sh 'docker rm -f autoplay-app || true'
 
-                        // 2. Identify the active and inactive environments
+                        // 2. Identify the active and inactive environments by querying the live running nginx_lb config
                         def activeEnv = "blue"
                         def inactiveEnv = "green"
                         def inactivePort = "8002"
                         
-                        if (fileExists('nginx/nginx.conf')) {
-                            def configContent = readFile('nginx/nginx.conf')
-                            if (configContent.contains('server app_green:5000;')) {
-                                activeEnv = "green"
-                                inactiveEnv = "blue"
-                                inactivePort = "8001"
-                            }
+                        // Query the live Nginx container configuration directly to find out who is active
+                        def liveConfig = sh(
+                            script: 'docker exec nginx_lb cat /etc/nginx/nginx.conf 2>/dev/null || echo ""',
+                            returnStdout: true
+                        ).trim()
+                        
+                        if (liveConfig.contains('server app_green:5000;')) {
+                            activeEnv = "green"
+                            inactiveEnv = "blue"
+                            inactivePort = "8001"
                         }
                         
                         echo "Currently active environment: ${activeEnv}"
@@ -107,6 +110,9 @@ pipeline {
                         // 5. Swap traffic and reload Nginx
                         echo "Updating Nginx configuration to point to ${inactiveEnv}..."
                         sh "sed -i 's/server app_\\(blue\\|green\\):5000;/server app_${inactiveEnv}:5000;/g' nginx/nginx.conf"
+                        
+                        echo "Applying config to Nginx container in-place..."
+                        sh "docker exec -i nginx_lb sh -c 'cat > /etc/nginx/nginx.conf' < nginx/nginx.conf"
                         
                         echo "Reloading Nginx load balancer..."
                         sh 'docker exec nginx_lb nginx -s reload'
