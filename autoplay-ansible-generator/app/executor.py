@@ -57,16 +57,21 @@ def _run_ansible_subprocess(run_id, playbook_id, ip, private_key_content=None, i
             # Apply restricted permissions
             os.chmod(key_path, 0o600)
             
-            # If a key path was hardcoded in the inventory, we replace it with our temporary secure path
-            # Or we can rewrite the inventory ini to use this specific key_path
+            # Inject key_path into the inventory content
             if "ansible_ssh_private_key_file=" in inventory_ini:
-                # Replace whatever private key was written with our key_path
                 import re
                 inventory_ini = re.sub(
                     r"ansible_ssh_private_key_file=\S+",
                     f"ansible_ssh_private_key_file={key_path}",
                     inventory_ini
                 )
+            else:
+                lines = []
+                for line in inventory_ini.splitlines():
+                    if line.strip() and not line.startswith('[') and 'ansible_user=' in line:
+                        line = f"{line} ansible_ssh_private_key_file={key_path}"
+                    lines.append(line)
+                inventory_ini = '\n'.join(lines) + '\n'
 
         with open(inventory_path, 'w', encoding='utf-8') as f:
             f.write(inventory_ini)
