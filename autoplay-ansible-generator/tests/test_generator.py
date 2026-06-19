@@ -63,5 +63,21 @@ class TestPlaybookGenerator(unittest.TestCase):
         self.assertIn('-e "ENV_VAR1=value1"', result)
         self.assertIn('-e "ENV_VAR2=value2"', result)
 
+    def test_sanitize_hosts_group_ip(self):
+        # 127.0.0.1 should become hosts_127_0_0_1
+        result_inv = generate_inventory('172.31.21.64', 'ec2-user', target_hosts='127.0.0.1')
+        self.assertIn('[hosts_127_0_0_1]', result_inv)
+        
+        result_pb = generate_playbook({'playbook_name': 'Test IP Env', 'target_hosts': '127.0.0.1'}, [])
+        self.assertIn('hosts: hosts_127_0_0_1', result_pb)
+
+    def test_sanitize_hosts_group_localhost(self):
+        # localhost should become hosts_localhost
+        result_inv = generate_inventory('172.31.21.64', 'ec2-user', target_hosts='localhost')
+        self.assertIn('[hosts_localhost]', result_inv)
+        
+        result_pb = generate_playbook({'playbook_name': 'Test Localhost Env', 'target_hosts': 'localhost'}, [])
+        self.assertIn('hosts: hosts_localhost', result_pb)
+
 if __name__ == '__main__':
     unittest.main()

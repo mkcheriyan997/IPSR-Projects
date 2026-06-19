@@ -6,6 +6,27 @@ from jinja2 import Environment, FileSystemLoader
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'playbook_templates')
 env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), trim_blocks=True, lstrip_blocks=True)
 
+def sanitize_hosts_group(target_hosts):
+    """
+    Sanitizes target_hosts to be a valid Ansible group name.
+    If it is 'all', default to 'target_servers'.
+    If it is an IP address or 'localhost' or starts with a digit, formats it to be a valid non-local group name.
+    """
+    import re
+    if not target_hosts or target_hosts == 'all':
+        return 'target_servers'
+    
+    target_hosts_str = str(target_hosts).strip()
+    if target_hosts_str == 'localhost' or target_hosts_str == '127.0.0.1' or re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', target_hosts_str):
+        sanitized = target_hosts_str.replace('.', '_')
+        return f"hosts_{sanitized}"
+        
+    # Standard group name sanitization (only allow letters, numbers, underscores)
+    sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', target_hosts_str)
+    if not sanitized or sanitized[0].isdigit():
+        sanitized = f"group_{sanitized}"
+    return sanitized
+
 def generate_playbook(header_vars, tasks_list):
     """
     Generates an Ansible Playbook (YAML string) from header variables and a list of task configurations.
@@ -17,7 +38,12 @@ def generate_playbook(header_vars, tasks_list):
     try:
         # 1. Render the header
         header_template = env.get_template('header.yml.j2')
-        playbook_content = header_template.render(header_vars)
+        
+        rendered_vars = header_vars.copy()
+        if 'target_hosts' in rendered_vars:
+            rendered_vars['target_hosts'] = sanitize_hosts_group(rendered_vars['target_hosts'])
+            
+        playbook_content = header_template.render(rendered_vars)
         if not playbook_content.endswith('\n'):
             playbook_content += '\n'
         
@@ -60,7 +86,7 @@ def generate_inventory(ip, user, key_path=None, password=None, target_hosts='tar
     # Standard connection option to avoid host key checking prompts
     line += " ansible_ssh_extra_args='-o StrictHostKeyChecking=no'"
     
-    group_name = 'target_servers' if target_hosts == 'all' else target_hosts
+    group_name = sanitize_hosts_group(target_hosts)
     content = f"[{group_name}]\n{line}\n"
     return content
 
