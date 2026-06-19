@@ -1,22 +1,18 @@
-- name: GitOps Auto-Test Playbook 2
-  hosts: all
+- name: AutoPlay Server Setup 2
+  hosts: 127.0.0.1
   become: yes
   tasks:
-    - name: Install Nginx (Debian/Ubuntu)
-      ansible.builtin.apt:
-        name: nginx
+    - name: Ensure custom group "devops" exists
+      ansible.builtin.group:
+        name: "devops"
         state: present
-        update_cache: yes
-      when: ansible_os_family == 'Debian'
 
-    - name: Install Nginx (RedHat/RHEL/CentOS/Fedora)
-      ansible.builtin.dnf:
-        name: nginx
+    - name: Create system user "webadmin"
+      ansible.builtin.user:
+        name: "webadmin"
+        shell: "/bin/bash"
+        groups: "devops"
+        append: yes
         state: present
-      when: ansible_os_family == 'RedHat'
 
-    - name: Start and enable Nginx service
-      ansible.builtin.service:
-        name: nginx
-        state: started
-        enabled: yes
+
