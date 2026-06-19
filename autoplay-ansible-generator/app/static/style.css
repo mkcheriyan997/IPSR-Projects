@@ -24,6 +24,15 @@ body {
     flex-direction: column;
 }
 
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.text-secondary {
+    color: #9ca3af !important;
+}
+
+
 /* Typography and utilities */
 .JetBrains-Mono {
     font-family: 'JetBrains Mono', monospace !important;
