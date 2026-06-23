@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Run inputs
     const privateKeyInput = document.getElementById('private-key-input');
+    const useStoredKeySwitch = document.getElementById('use-stored-key-switch');
     const dryRunSwitch = document.getElementById('dry-run-switch');
     const runPlaybookBtn = document.getElementById('run-playbook-btn');
 
@@ -268,9 +269,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const ip = document.getElementById('server-ip').value || 'localhost';
         const privateKey = privateKeyInput.value;
+        const useStoredKey = useStoredKeySwitch ? useStoredKeySwitch.checked : true;
         const isDryRun = dryRunSwitch.checked;
 
-        if (ip !== 'localhost' && !privateKey && !confirm('No SSH private key specified. Continue anyway? (Assumes local daemon or agent access)')) {
+        if (ip !== 'localhost' && !privateKey && !useStoredKey && !confirm('No SSH authentication source selected. Continue anyway?')) {
             return;
         }
 
@@ -285,6 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     playbook_id: generatedPlaybookId,
                     ip: ip,
                     private_key: privateKey,
+                    use_stored_key: useStoredKey,
                     is_dry_run: isDryRun
                 })
             });

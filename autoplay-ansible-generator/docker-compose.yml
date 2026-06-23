@@ -8,8 +8,10 @@ services:
       - "8001:5000"
     volumes:
       - autoplay-db:/app/app/generated
+      - ${AUTOPLAY_SSH_KEY_PATH:-/home/ec2-user/.ssh/temp_key}:/run/secrets/autoplay_ssh_key:ro
     environment:
       - GITHUB_PAT=${GITHUB_PAT}
+      - AUTOPLAY_DEFAULT_SSH_KEY_PATH=/run/secrets/autoplay_ssh_key
     restart: unless-stopped
 
   app_green:
@@ -19,8 +21,10 @@ services:
       - "8002:5000"
     volumes:
       - autoplay-db:/app/app/generated
+      - ${AUTOPLAY_SSH_KEY_PATH:-/home/ec2-user/.ssh/temp_key}:/run/secrets/autoplay_ssh_key:ro
     environment:
       - GITHUB_PAT=${GITHUB_PAT}
+      - AUTOPLAY_DEFAULT_SSH_KEY_PATH=/run/secrets/autoplay_ssh_key
     restart: unless-stopped
 
   nginx_lb:

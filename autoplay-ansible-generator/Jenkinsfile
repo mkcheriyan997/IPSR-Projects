@@ -73,6 +73,13 @@ pipeline {
                             inactiveEnv = "blue"
                             inactivePort = "8001"
                         }
+
+                        if (liveConfig.contains('server app_blue:5000;') || liveConfig.contains('server app_green:5000;')) {
+                            writeFile file: 'nginx/nginx.conf', text: liveConfig + "\n"
+                            echo "Preserved live Nginx backend state in workspace config before compose operations."
+                        } else {
+                            echo "No live Nginx backend state detected; using checked-out nginx/nginx.conf as bootstrap config."
+                        }
                         
                         echo "Currently active environment: ${activeEnv}"
                         echo "Deploying to inactive environment: ${inactiveEnv} on port ${inactivePort}"

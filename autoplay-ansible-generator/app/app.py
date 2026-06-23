@@ -6,7 +6,7 @@ from app.database import (
     create_run, get_runs, get_run
 )
 from app.generator import generate_playbook, generate_inventory, run_risk_assessment
-from app.executor import execute_ansible_async
+from app.executor import execute_ansible_async, get_default_ssh_key_status
 from app.gitops import push_to_gitops
 
 app = Flask(__name__)
@@ -17,11 +17,11 @@ init_db()
 
 @app.route('/')
 def home():
-    return render_template('dashboard.html')
+    return render_template('dashboard.html', default_ssh_key=get_default_ssh_key_status())
 
 @app.route('/dashboard')
 def dashboard():
-    return render_template('dashboard.html')
+    return render_template('dashboard.html', default_ssh_key=get_default_ssh_key_status())
 
 @app.route('/api/generate', methods=['POST'])
 def api_generate():
@@ -87,7 +87,7 @@ def view_playbook(playbook_id):
     playbook = get_playbook(playbook_id)
     if not playbook:
         return "Playbook not found", 404
-    return render_template('preview.html', playbook=playbook)
+    return render_template('preview.html', playbook=playbook, default_ssh_key=get_default_ssh_key_status())
 
 @app.route('/playbook/<int:playbook_id>/download-playbook')
 def download_playbook_file(playbook_id):
@@ -121,6 +121,7 @@ def api_run_playbook():
         playbook_id = data.get('playbook_id')
         ip = data.get('ip', 'localhost')
         private_key = data.get('private_key', '')
+        use_stored_key = data.get('use_stored_key', True)
         is_dry_run = data.get('is_dry_run', False)
         
         if not playbook_id:
@@ -130,6 +131,16 @@ def api_run_playbook():
         if not playbook:
             return jsonify({'success': False, 'error': 'Playbook not found'}), 404
             
+        stored_key_path = None
+        if not private_key and use_stored_key and ip != 'localhost':
+            default_key = get_default_ssh_key_status()
+            if not default_key['available']:
+                return jsonify({
+                    'success': False,
+                    'error': f"Stored SSH key is not available at {default_key['path']}. Paste a one-time key or configure AUTOPLAY_DEFAULT_SSH_KEY_PATH."
+                }), 400
+            stored_key_path = default_key['path']
+
         # Create execution record in database
         run_id = create_run(playbook_id, ip)
         
@@ -139,6 +150,7 @@ def api_run_playbook():
             playbook_id=playbook_id,
             ip=ip,
             private_key_content=private_key if private_key else None,
+            private_key_path=stored_key_path,
             is_dry_run=is_dry_run
         )
         

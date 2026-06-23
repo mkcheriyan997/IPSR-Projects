@@ -91,8 +91,23 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label small text-muted text-uppercase fw-bold m-0 d-block mb-1">SSH Private Key Content (Optional)</label>
-                            <textarea class="form-control bg-input text-white border-secondary JetBrains-Mono small" id="run-key-input" rows="4" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+                            <div class="d-flex align-items-center justify-content-between mb-2 gap-2">
+                                <label class="form-label small text-muted text-uppercase fw-bold m-0">SSH Authentication</label>
+                                {% if default_ssh_key.available %}
+                                    <span class="badge bg-success-subtle text-success border border-success">Stored key ready</span>
+                                {% else %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning">Stored key missing</span>
+                                {% endif %}
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="run-use-stored-key" checked>
+                                <label class="form-check-label text-light small fw-bold" for="run-use-stored-key">
+                                    Use stored server key
+                                </label>
+                            </div>
+                            <p class="text-muted small mb-2">Default path: <code class="text-info">{{ default_ssh_key.path }}</code></p>
+                            <label class="form-label small text-muted text-uppercase fw-bold m-0 d-block mb-1">One-time SSH Private Key Override</label>
+                            <textarea class="form-control bg-input text-white border-secondary JetBrains-Mono small" id="run-key-input" rows="4" placeholder="Paste only when you need to override the stored key"></textarea>
                         </div>
 
                         <div class="d-flex align-items-center justify-content-between mb-3">
@@ -121,9 +136,10 @@ document.addEventListener('DOMContentLoaded', () => {
         runBtn.addEventListener('click', async () => {
             const ip = document.getElementById('run-ip-input').value || 'localhost';
             const privateKey = document.getElementById('run-key-input').value;
+            const useStoredKey = document.getElementById('run-use-stored-key').checked;
             const isDryRun = document.getElementById('run-dry-run').checked;
 
-            if (ip !== 'localhost' && !privateKey && !confirm('No SSH private key specified. Continue?')) {
+            if (ip !== 'localhost' && !privateKey && !useStoredKey && !confirm('No SSH authentication source selected. Continue?')) {
                 return;
             }
 
@@ -138,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         playbook_id: "{{ playbook.id }}",
                         ip: ip,
                         private_key: privateKey,
+                        use_stored_key: useStoredKey,
                         is_dry_run: isDryRun
                     })
                 });
