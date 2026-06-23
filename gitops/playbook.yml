@@ -1,5 +1,5 @@
 - name: AutoPlay Server Setup
-  hosts: demo_target_group
+  hosts: target_servers
   become: yes
   tasks:
     - name: Create managed directory "/opt/autoplay-data"
