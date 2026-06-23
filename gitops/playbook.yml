@@ -1,33 +1,11 @@
-- name: AutoPlay Server Setup3
-  hosts: hosts_127_0_0_1
+- name: AutoPlay Demo Infrastructure Workflow
+  hosts: demo_servers
   become: yes
   tasks:
-    - name: Install Docker pre-requisites (Debian/Ubuntu)
-      ansible.builtin.apt:
-        name:
-          - apt-transport-https
-          - ca-certificates
-          - curl
-          - gnupg
-          - software-properties-common
-        state: present
-        update_cache: yes
-      when: ansible_os_family == 'Debian'
+    - name: Write managed file "/tmp/autoplay-managed.txt"
+      ansible.builtin.copy:
+        dest: "/tmp/autoplay-managed.txt"
+        mode: "0644"
+        content: |
+          Managed by AutoPlay
 
-    - name: Install Docker (Debian/Ubuntu)
-      ansible.builtin.apt:
-        name: docker.io
-        state: present
-      when: ansible_os_family == 'Debian'
-
-    - name: Install Docker (RedHat/RHEL/CentOS/Fedora)
-      ansible.builtin.dnf:
-        name: docker
-        state: present
-      when: ansible_os_family == 'RedHat'
-
-    - name: Start and enable Docker service
-      ansible.builtin.service:
-        name: docker
-        state: started
-        enabled: yes
