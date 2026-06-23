@@ -1,11 +1,11 @@
-- name: AutoPlay Demo Infrastructure Workflow
-  hosts: demo_servers
+- name: AutoPlay Server Setup
+  hosts: demo_target_group
   become: yes
   tasks:
-    - name: Write managed file "/tmp/autoplay-managed.txt"
-      ansible.builtin.copy:
-        dest: "/tmp/autoplay-managed.txt"
-        mode: "0644"
-        content: |
-          Managed by AutoPlay
-
+    - name: Manage hosts entry for "app.internal app"
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.0\.1\s+'
+        line: "127.0.0.1 app.internal app"
+        state: present
+        backup: true
