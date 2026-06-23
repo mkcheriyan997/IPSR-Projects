@@ -41,6 +41,22 @@ def _inject_private_key_path(inventory_ini, key_path):
         lines.append(line)
     return '\n'.join(lines) + '\n'
 
+def _override_inventory_target(inventory_ini, ip):
+    if not ip or ip in ('localhost', '127.0.0.1'):
+        return inventory_ini, False
+
+    lines = []
+    replaced = False
+    for line in inventory_ini.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith('[') and not replaced:
+            parts = line.split(maxsplit=1)
+            line = f"{ip} {parts[1]}" if len(parts) > 1 else ip
+            replaced = True
+        lines.append(line)
+
+    return '\n'.join(lines) + '\n', replaced
+
 def execute_ansible_async(run_id, playbook_id, ip, private_key_content=None, private_key_path=None, is_dry_run=False):
     """
     Spawns a background thread to execute the Ansible playbook.
@@ -65,6 +81,7 @@ def _run_ansible_subprocess(run_id, playbook_id, ip, private_key_content=None, p
 
     playbook_yaml = playbook_data['playbook_yaml']
     inventory_ini = playbook_data['inventory_ini']
+    inventory_overridden = False
 
     # 2. Setup temporary paths
     playbook_path = os.path.join(PLAYBOOKS_DIR, f"playbook_{run_id}.yml")
@@ -75,6 +92,8 @@ def _run_ansible_subprocess(run_id, playbook_id, ip, private_key_content=None, p
         # Write playbook and inventory files
         with open(playbook_path, 'w', encoding='utf-8') as f:
             f.write(playbook_yaml)
+
+        inventory_ini, inventory_overridden = _override_inventory_target(inventory_ini, ip)
 
         # Write SSH private key content only when explicitly provided as an override.
         if private_key_content:
@@ -100,6 +119,8 @@ def _run_ansible_subprocess(run_id, playbook_id, ip, private_key_content=None, p
         log_msg = f"Executing Command: {' '.join(cmd)}\n"
         if is_dry_run:
             log_msg += "Mode: DRY RUN (Check-Mode)\n"
+        if inventory_overridden:
+            log_msg += f"Target: using run target override {ip}\n"
         if private_key_path and not private_key_content:
             log_msg += f"SSH Key: using stored server key at {private_key_path}\n"
         elif private_key_content:
