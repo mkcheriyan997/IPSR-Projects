@@ -2,10 +2,11 @@
   hosts: demo_target_group
   become: yes
   tasks:
-    - name: Manage hosts entry for "app.internal app"
-      ansible.builtin.lineinfile:
-        path: /etc/hosts
-        regexp: '^127\.0\.0\.1\s+'
-        line: "127.0.0.1 app.internal app"
-        state: present
-        backup: true
+    - name: Create managed directory "/opt/autoplay-data"
+      ansible.builtin.file:
+        path: "/opt/autoplay-data"
+        state: directory
+        owner: "root"
+        group: "root"
+        mode: "0755"
+
