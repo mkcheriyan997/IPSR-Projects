@@ -1,4 +1,4 @@
-- name: AutoPlay Server Setup
+- name: AutoPlay Server Setup 5
   hosts: target_servers
   become: yes
   tasks:
@@ -19,15 +19,8 @@
 
     - name: Checkout source repository into "/opt/application"
       ansible.builtin.git:
-        repo: ""
+        repo: "https://github.com/mkcheriyan997/IPSR-Projects.git"
         dest: "/opt/application"
         version: "main"
         update: true
 
-    - name: Manage hosts entry for "app.internal app"
-      ansible.builtin.lineinfile:
-        path: /etc/hosts
-        regexp: '^127\.0\.0\.1\s+'
-        line: "127.0.0.1 app.internal app"
-        state: present
-        backup: true
