@@ -10,3 +10,24 @@
         group: "root"
         mode: "0755"
 
+    - name: Write managed file "/tmp/autoplay-managed.txt"
+      ansible.builtin.copy:
+        dest: "/tmp/autoplay-managed.txt"
+        mode: "0644"
+        content: |
+          Managed by AutoPlay
+
+    - name: Checkout source repository into "/opt/application"
+      ansible.builtin.git:
+        repo: ""
+        dest: "/opt/application"
+        version: "main"
+        update: true
+
+    - name: Manage hosts entry for "app.internal app"
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.0\.1\s+'
+        line: "127.0.0.1 app.internal app"
+        state: present
+        backup: true
